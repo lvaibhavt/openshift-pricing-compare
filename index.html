@@ -101,6 +101,10 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 .info{font-size:12px;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--azure);border-radius:6px;padding:8px 10px;color:var(--ink)}
 label>span{overflow:visible}
 .sl-warn{background:#FFF4E0;border:1.5px solid #E8B73A;border-radius:6px;color:#8A5A00;font:700 14px Calibri,system-ui,sans-serif;padding:8px 14px;margin:0 0 12px}
+.disc{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.disc .muted{color:var(--mute);font-weight:400}
+.disc-fields{display:grid;grid-template-columns:repeat(5,minmax(0,140px));gap:12px}
+@media (max-width:700px){.disc-fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -117,6 +121,16 @@ label>span{overflow:visible}
 <section class="card">
   <h2><span class="step">2</span>Cloud‑specific choices</h2>
   <p class="desc">Region, shape per node role, and storage type + performance settings for each cloud. Defaults are the cheapest option that meets Step 1; anything that falls short is marked ⚠. Only regions where the OpenShift offering is available are listed.</p>
+  <div class="disc">
+    <label class="chk"><input type="checkbox" id="discOn"> <b>Apply rate‑card discounts</b> <span class="muted">(flat % off list price, e.g. many OCI customers get 10–15%)</span></label>
+    <div class="disc-fields" id="discFields" hidden>
+      <label><span>OCI %</span><input type="number" min="0" max="100" step="0.5" id="disc-oci" value="15"></label>
+      <label><span>AWS %</span><input type="number" min="0" max="100" step="0.5" id="disc-aws" value="0"></label>
+      <label><span>Azure %</span><input type="number" min="0" max="100" step="0.5" id="disc-azure" value="0"></label>
+      <label><span>Google %</span><input type="number" min="0" max="100" step="0.5" id="disc-gcp" value="0"></label>
+      <label><span>IBM %</span><input type="number" min="0" max="100" step="0.5" id="disc-ibm" value="0"></label>
+    </div>
+  </div>
   <div class="provs" id="provs"></div>
 </section>
 
@@ -445,6 +459,7 @@ function infoText(k){
 }
 function refreshInfo(){ for(const p of P){ const el=$(`${p.k}-info`); if(el && !el.hidden) el.innerHTML=infoText(p.k); } }
 
+const discount = k => $('discOn').checked ? Math.min(100,Math.max(0,+$(`disc-${k}`).value||0)) : 0;
 // ---------- Pricing ----------
 function storeCalc(k, st, reg){
   if(!st.n) return {cost:0,iops:0,mbps:0,label:'—'};
@@ -490,6 +505,8 @@ function calc(){
     if(c.st.n && (s.iops<c.st.iops || s.mbps<c.st.mbps)) o.warn.push(`Storage below OCI's ${c.st.vpu} VPU performance (${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s)`);
     o.store = s; o.storage = s.cost; o.boot = bootCost(k, o.nodes*boot)*reg;
     $(`${k}-store`).innerHTML = `Per volume: <b>${num(s.iops)} IOPS · ${num(s.mbps)} MB/s</b>` + (s.range?`<br>Allowed: ${s.range}`:'') + (o.warn.length?`<br><span class="warn">⚠ ${o.warn.join('<br>⚠ ')}</span>`:'');
+    o.disc = discount(k); o.listTotal = o.master+o.infra+o.worker+o.fee+o.storage+o.boot;
+    if(o.disc) for(const f of ['master','infra','worker','fee','storage','boot']) o[f] *= 1-o.disc/100;
     o.total = o.na ? null : o.master+o.infra+o.worker+o.fee+o.storage+o.boot;
     out[k]=o;
   }
@@ -521,6 +538,8 @@ function render(out, c){
 $('rates').innerHTML = Object.keys(R).map(k=>`<h3 style="margin-top:10px">${P.find(p=>p.k===k).name}</h3><div class="grid">${Object.keys(R[k]).map(f=>`<label>${RL[k][f]}<input type="number" step="any" data-rk="${k}" data-rf="${f}" value="${R[k][f]}"></label>`).join('')}</div>`).join('');
 
 $('common').addEventListener('input', ()=>{ renderProviders(); calc(); });
+$('discOn').addEventListener('change', ()=>{ $('discFields').hidden=!$('discOn').checked; calc(); });
+$('discFields').addEventListener('input', calc);
 $('provs').addEventListener('change', e=>{
   if(e.target.id==='aws-model') renderProviders();
   if(e.target.id==='oci-st-type'){ const c=common(); for(const k of ['aws','azure','gcp','ibm']){ $(`${k}-st-type`).value=bestStore(k,c.st); $(`${k}-st-iops`).value=c.st.iops; $(`${k}-st-mbps`).value=c.st.mbps; } }
@@ -576,7 +595,9 @@ function deckReport(skipCalc){
   row('Boot volumes / month', k=>fmt(out[k].boot));
   sec(`ON-DEMAND PRICING  (${H} HRS / MONTH)`);
   row('OpenShift fee / licence', k=>k==='oci'?'BYOL'+mark('OpenShift on OCI is BYOL only: customer brings an existing Red Hat subscription; no licence cost is included.'):fmt(out[k].fee));
-  row('Cluster / month', k=>fmt(out[k].total), {strong:true});
+  const anyDisc = P.some(p=>out[p.k].disc);
+  if(anyDisc){ row('List price / month', k=>fmt(out[k].listTotal)); row('Rate-card discount', k=>out[k].disc?`−${out[k].disc}%`:'none'); }
+  row(anyDisc?'Cluster / month (after discount)':'Cluster / month', k=>fmt(out[k].total), {strong:true});
   row('1-year cluster total (12 months)', k=>fmt(out[k].total*12), {strong:true});
 
   const base=out.oci.total, callouts=[];
@@ -584,9 +605,10 @@ function deckReport(skipCalc){
   row('1-year savings with OCI', k=>{ if(k==='oci') return '—'; const d=out[k].total-base; return `${d<0?'−':''}${fmt(Math.abs(d)*12)} (${Math.round(Math.abs(d)/out[k].total*100)}%)`; }, {savings:true});
   for(const p of P){ if(p.k==='oci') continue; const d=out[p.k].total-base, pct=Math.round(Math.abs(d)/out[p.k].total*100), cheaper=d>=0;
     callouts.push({positive:cheaper,title:`${pct}% ${cheaper?'lower':'higher'} than ${p.name.split(' – ')[1]}`,sub:`${cheaper?'Save':'Costs'} ${kUsd(Math.abs(d)*12)} ${cheaper?'':'more '}over 1 year`}); }
+  if(P.some(p=>out[p.k].disc)) notes.push(`Rate-card discounts applied to all line items (compute, fees, storage): ${P.map(p=>`${{oci:'OCI',aws:'AWS',azure:'Azure',gcp:'Google',ibm:'IBM'}[p.k]} ${out[p.k].disc}%`).join(', ')}. Every cost row on this slide is after discount.`);
   notes.push(`Indicative on-demand list prices, USD, ${H} hrs/month. Managed-service fees (ROSA, ARO, OSD, ROKS) include the OpenShift licence; OCI is BYOL. Excludes egress, load balancers, snapshots, support, taxes and committed-use discounts. Estimates, not quotes.`);
   const subtitle=['OpenShift on OCI (BYOL) vs managed OpenShift', `${ROLES.map(r=>c[r.id].count).reduce((a,b)=>a+b,0)}-node cluster`, `${ROLES.reduce((a,r)=>a+c[r.id].count*c[r.id].cores,0)} cores / ${num(ROLES.reduce((a,r)=>a+c[r.id].count*c[r.id].ram,0))} GB RAM`, 'On-demand', `${H} hours/month`].join('  ·  ');
-  return {heads:P.map(p=>p.name.replace(' – OpenShift (BYOL)',' – OpenShift')), rows, callouts, notes, subtitle, badge:'On-demand · Monthly', out, c, model, H};
+  return {heads:P.map(p=>p.name.replace(' – OpenShift (BYOL)',' – OpenShift')), rows, callouts, notes, subtitle, badge:P.some(p=>out[p.k].disc)?'Discounted · Monthly':'On-demand · Monthly', out, c, model, H};
 }
 
 function deckMain(pptx, rep){
