@@ -71,12 +71,14 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 .prov select{font-size:13px}
 .prov h4{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
 .prov .fixed{height:36px;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+.chk{flex-direction:row;align-items:center;gap:8px;font-size:12px;color:var(--ink)}
+.chk input{width:16px;height:16px;flex:none}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>OpenShift Pricing Compare</h1>
-<div class="sub">Red Hat OpenShift on OCI (BYOM) vs managed OpenShift on AWS (ROSA), Azure (ARO), Google Cloud (OSD) and IBM Cloud (ROKS). Indicative on‑demand list prices; verify with each provider.</div>
+<div class="sub">Red Hat OpenShift on OCI (BYOL) vs managed OpenShift on AWS (ROSA), Azure (ARO), Google Cloud (OSD) and IBM Cloud (ROKS). Indicative on‑demand list prices; verify with each provider.</div>
 
 <section class="card">
   <h2><span class="step">1</span>Common requirements</h2>
@@ -103,7 +105,7 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 <section class="card notes">
   <h2>Assumptions and sources</h2>
   <ul>
-    <li><b>OCI</b>: BYOM. OCI compute + Block Volume + your own Red Hat subscription (workers only; masters and infra are exempt). OCI prices are identical in every region. Regions: all OC1 commercial regions (OCI regions documentation).</li>
+    <li><b>OCI</b>: BYOL. You pay OCI for compute + Block Volume only; the Red Hat OpenShift subscription is your own existing licence, so it is <b>not</b> added by default. Tick “Add Red Hat subscription cost” in the OCI card if you need to buy new subscriptions (charged on workers only; masters and infra are exempt). OCI prices are identical in every region. Regions: all OC1 commercial regions (OCI regions documentation).</li>
     <li><b>AWS ROSA</b>: regions per AWS ROSA endpoints page. HCP isn't offered in us‑west‑1. HCP = hosted control plane at $0.25/cluster‑hr; Classic = masters on your EC2 + $0.03/cluster‑hr. Workers pay EC2 + ROSA fee per 4 vCPU.</li>
     <li><b>Azure ARO</b>: shapes per ARO support policy (masters must be ≥ 8 vCPU D/E‑series). Regions per Azure products‑by‑region; confirm with <code>az provider show -n Microsoft.RedHatOpenShift</code>. Workers pay VM + ARO fee. Bare metal isn't supported: if chosen, those nodes are priced on the VM shape you pick and flagged in red.</li>
     <li><b>Google OSD</b>: regions per OpenShift Dedicated service definition. Masters and infra on your GCE VMs; workers pay VM + OSD fee. Bare metal isn't supported: priced on the chosen VM shape and flagged in red.</li>
@@ -252,7 +254,7 @@ function ociVol(gb,vpu){
 const VPUS = [0,10,20,30,40,50,60,70,80,90,100,110,120];
 
 const P = [
-  {k:'oci',name:'OCI – OpenShift (BYOM)',c:'var(--oci)'},
+  {k:'oci',name:'OCI – OpenShift (BYOL)',c:'var(--oci)'},
   {k:'aws',name:'AWS – ROSA',c:'var(--aws)'},
   {k:'azure',name:'Azure – ARO',c:'var(--azure)'},
   {k:'gcp',name:'Google – OSD',c:'var(--gcp)'},
@@ -271,7 +273,7 @@ const R = {
   ibm:{lic4:.35},
 };
 const RL = {
-  oci:{sub2core:'Red Hat OCP $/yr per 2 cores',subSocketPair:'Red Hat OCP $/yr per BM socket‑pair'},
+  oci:{sub2core:'Red Hat OCP $/yr per 2 cores (only if box ticked)',subSocketPair:'Red Hat OCP $/yr per BM socket‑pair (only if ticked)'},
   aws:{hcp:'ROSA HCP $/cluster‑hr',classic:'ROSA Classic $/cluster‑hr',fee4:'ROSA worker $/4 vCPU‑hr'},
   azure:{fee4:'ARO worker $/4 vCPU‑hr'},
   gcp:{fee4:'OSD worker $/4 vCPU‑hr'},
@@ -291,7 +293,7 @@ $('common').innerHTML = `
     <tbody>${ROLES.map(r=>`<tr>
       <td class="role">${r.name}</td>
       <td><input type="number" min="0" id="${r.id}-count" value="${r.count}"></td>
-      <td>${r.bm ? `<select id="${r.id}-type">${opt('vm','Virtual machine',1)}${opt('bm','Bare metal')}</select>` : `<select disabled title="Masters are always VMs"><option>Virtual machine</option></select>`}</td>
+      <td>${r.bm ? `<select id="${r.id}-type">${opt('vm','Virtual machine',1)}${opt('bm','Bare metal')}${opt('both','VM + Bare metal')}</select>` : `<select disabled title="Masters are always VMs"><option>Virtual machine</option></select>`}</td>
       <td><input type="number" min="1" id="${r.id}-cores" value="${r.cores}"></td>
       <td><input type="number" min="1" id="${r.id}-ram" value="${r.ram}"></td>
       <td class="eq" id="${r.id}-hint"></td></tr>`).join('')}</tbody>
@@ -317,16 +319,17 @@ function common(){
 }
 
 // ---------- Step 2 helpers ----------
-function shapeList(k, type, role){
-  if(k==='oci') return type==='bm' ? OCI_BM.map(s=>({n:s[0],v:s[1]*2,g:s[2],p:s[1]*s[3]+s[2]*s[4]})) : Object.keys(OCI_VM).map(n=>({n,flex:true}));
-  let l = CAT[k][type].map(s=>({n:s[0],v:s[1],g:s[2],p:s[3]}));
+function shapeList(k, type, role, need){
+  if(type==='both') return [...shapeList(k,'vm',role,need), ...shapeList(k,'bm',role,need)];
+  if(k==='oci') return type==='bm'
+    ? OCI_BM.map(s=>({n:s[0],v:s[1]*2,g:s[2],p:s[1]*s[3]+s[2]*s[4],kind:'bm'}))
+    : Object.entries(OCI_VM).map(([n,r])=>({n,flex:true,kind:'vm',v:need.vcpu,g:need.ram,p:need.cores*r[0]+need.ram*r[1],ok:need.cores<=r[2]&&need.ram<=r[3]}));
+  let l = CAT[k][type].map(s=>({n:s[0],v:s[1],g:s[2],p:s[3],kind:type}));
   if(k==='azure' && role==='master') l = l.filter(s=>s.v>=8 && !s.n.startsWith('Standard_F'));
   return l;
 }
-function bestFit(k,type,need,role){
-  if(k==='oci' && type==='vm') return Object.keys(OCI_VM).map(n=>[n,need.cores*OCI_VM[n][0]+need.ram*OCI_VM[n][1],need.cores<=OCI_VM[n][2]&&need.ram<=OCI_VM[n][3]]).filter(x=>x[2]).sort((a,b)=>a[1]-b[1])[0]?.[0] || 'VM.Standard.E5.Flex';
-  const list = shapeList(k,type,role);
-  const fit = list.filter(s=>s.v>=need.vcpu && s.g>=need.ram).sort((a,b)=>a.p-b.p);
+function bestFit(list, need){
+  const fit = list.filter(s=>s.ok!==false && s.v>=need.vcpu && s.g>=need.ram).sort((a,b)=>a.p-b.p);
   return (fit[0] || list.slice().sort((a,b)=>b.v-a.v)[0])?.n;
 }
 function bestStore(k, st){
@@ -338,29 +341,30 @@ function bestStore(k, st){
 
 function renderProviders(){
   const c = common(), keep = {};
-  P.forEach(p=>keep[p.k] = $(`${p.k}-region`)?.value);
+  P.forEach(p=>keep[p.k] = $(`${p.k}-region`)?.value); keep.sub = $('oci-sub')?.checked;
   const model = $('aws-model')?.value || 'hcp';
   $('provs').innerHTML = P.map(p=>{
     const k=p.k;
     let regs = REGIONS[k]; if(k==='aws' && model==='hcp') regs = regs.filter(r=>r[3]);
     let h = `<div class="prov" style="--c:${p.c}"><h3>${p.name}</h3>`;
     h += k==='aws' ? `<label><span>Deployment model</span><select id="aws-model">${opt('hcp','ROSA – Hosted control plane (HCP)',model==='hcp')}${opt('classic','ROSA – Classic',model==='classic')}</select></label>`
-      : `<label><span>Deployment model</span><select disabled><option>${{oci:'Self‑managed OpenShift (BYOM)',azure:'ARO – managed',gcp:'OSD – Customer Cloud Subscription',ibm:'ROKS – VPC'}[k]}</option></select></label>`;
+      : `<label><span>Deployment model</span><select disabled><option>${{oci:'Self‑managed OpenShift (BYOL)',azure:'ARO – managed',gcp:'OSD – Customer Cloud Subscription',ibm:'ROKS – VPC'}[k]}</option></select></label>`;
     h += `<label>Region (${regs.length} available)<select id="${k}-region">${regs.map(r=>opt(r[0], r[1]+(r[2]!==1?` · +${Math.round((r[2]-1)*100)}%`:''), r[0]===keep[k])).join('')}</select></label>`;
+    if(k==='oci') h += `<label class="chk"><input type="checkbox" id="oci-sub" ${keep.sub?'checked':''}> Add Red Hat subscription cost (off = BYOL, licence already owned)</label>`;
     h += `<h4>Compute</h4>`;
     for(const r of ROLES){
       const need = c[r.id];
       if(!need.count){ h += `<label>${r.name}<select disabled><option>— not required (count is 0) —</option></select></label>`; continue; }
       const managed = r.id==='master' && (k==='ibm' || (k==='aws' && model==='hcp'));
       if(managed){ h += `<label>${r.name}<div class="fixed">Managed by provider</div></label>`; continue; }
-      const noBM = need.type==='bm' && (k==='azure'||k==='gcp'), t = noBM ? 'vm' : need.type;
-      if(noBM) h += `<div class="bmwarn">❗ Bare metal is not supported on ${k==='azure'?'ARO':'OSD'}. ${r.name} are priced on the VM shape below.</div>`;
-      const list = shapeList(k,t,r.id), best = bestFit(k,t,need,r.id);
-      h += `<label>${r.name} – ${t==='bm'?'bare‑metal':'VM'} shape<select id="${k}-${r.id}-shape">${list.map(s=>{
-        if(s.flex) return opt(s.n, `${s.n} (${need.cores} OCPU / ${need.ram} GB)`, s.n===best);
-        const short = s.v<need.vcpu || s.g<need.ram;
-        return opt(s.n, `${short?'⚠ ':''}${s.n} – ${s.v} vCPU / ${s.g} GB`, s.n===best);
-      }).join('')}</select></label>`;
+      const noBM = need.type!=='vm' && (k==='azure'||k==='gcp'), t = noBM ? 'vm' : need.type;
+      if(noBM && need.type==='bm') h += `<div class="bmwarn">❗ Bare metal is not supported on ${k==='azure'?'ARO':'OSD'}. ${r.name} are priced on the VM shape below.</div>`;
+      const list = shapeList(k,t,r.id,need), best = bestFit(list,need);
+      const o1 = s => s.flex ? opt(s.n, `${s.n} (${need.cores} OCPU / ${need.ram} GB)`, s.n===best)
+                             : opt(s.n, `${(s.v<need.vcpu||s.g<need.ram)?'⚠ ':''}${s.n} – ${s.v} vCPU / ${s.g} GB`, s.n===best);
+      const grp = (lab,arr) => arr.length ? `<optgroup label="${lab}">${arr.map(o1).join('')}</optgroup>` : '';
+      const lbl = t==='bm'?'bare‑metal shape':t==='both'?'VM or bare‑metal shape':'VM shape';
+      h += `<label>${r.name} – ${lbl}${noBM && need.type==='both'?' <span class="warn">(no bare metal on '+(k==='azure'?'ARO':'OSD')+')</span>':''}<select id="${k}-${r.id}-shape">${grp('Virtual machines',list.filter(x=>x.kind==='vm'))}${grp('Bare metal',list.filter(x=>x.kind==='bm'))}</select></label>`;
     }
     h += `<h4>Storage</h4>`;
     const bs = bestStore(k, c.st);
@@ -406,12 +410,13 @@ function calc(){
       o.nodes += need.count;
       let hr, vcpu;
       if(k==='oci'){
-        if(need.type==='vm'){ const s=OCI_VM[sel.value]; if(need.cores>s[2]||need.ram>s[3]) o.warn.push(`${r.name}: exceeds ${sel.value} max`); hr=need.cores*s[0]+need.ram*s[1]; vcpu=need.vcpu; }
-        else { const s=OCI_BM.find(x=>x[0]===sel.value); hr=s[1]*s[3]+s[2]*s[4]; vcpu=s[1]*2; }
-        if(r.id==='worker') o.fee += need.type==='bm' ? need.count*R.oci.subSocketPair/12 : need.count*Math.ceil(need.cores/2)*R.oci.sub2core/12;
+        const vm = OCI_VM[sel.value];
+        if(vm){ if(need.cores>vm[2]||need.ram>vm[3]) o.warn.push(`${r.name}: exceeds ${sel.value} max`); hr=need.cores*vm[0]+need.ram*vm[1]; }
+        else { const b=OCI_BM.find(x=>x[0]===sel.value); hr=b[1]*b[3]+b[2]*b[4]; }
+        if(r.id==='worker' && $('oci-sub')?.checked) o.fee += vm ? need.count*Math.ceil(need.cores/2)*R.oci.sub2core/12 : need.count*R.oci.subSocketPair/12;
       } else {
-        const s = CAT[k][CAT[k][need.type].length?need.type:'vm'].find(x=>x[0]===sel.value);
-        if(need.type==='bm' && !CAT[k].bm.length) o.warn.push(`${r.name}: bare metal not supported – priced on VM`); hr=s[3]; vcpu=s[1];
+        const s = CAT[k].vm.find(x=>x[0]===sel.value) || CAT[k].bm.find(x=>x[0]===sel.value); hr=s[3]; vcpu=s[1];
+        if(need.type==='bm' && !CAT[k].bm.length) o.warn.push(`${r.name}: bare metal not supported – priced on VM`);
         if(s[1]<need.vcpu||s[2]<need.ram) o.warn.push(`${r.name}: ${s[0]} is below requirement`);
         const units = need.count*Math.ceil(vcpu/4)*H;
         if(k==='ibm') o.fee += units*R.ibm.lic4; else if(r.id==='worker') o.fee += units*R[k].fee4;
@@ -438,7 +443,7 @@ function render(out, c){
   let h = `<thead><tr><th>${lbl} cost</th>${P.map(p=>`<th><span class="dot" style="background:${p.c}"></span>${p.name}</th>`).join('')}</tr></thead><tbody>`;
   h += `<tr><td>Region</td>${P.map(p=>`<td>${$(`${p.k}-region`).value}</td>`).join('')}</tr>`;
   h += `<tr class="sec"><td>Compute</td>${P.map(()=>'<td></td>').join('')}</tr>`;
-  for(const [n,f] of [['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee']]) h += `<tr><td>${n}</td>${P.map(p=>cell(p,f)).join('')}</tr>`;
+  for(const [n,f] of [['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee']]) h += `<tr><td>${n}</td>${P.map(p=>(p.k==='oci'&&f==='fee'&&!$('oci-sub').checked)?'<td class="na">BYOL – own licence</td>':cell(p,f)).join('')}</tr>`;
   h += `<tr class="sec"><td>Storage (${c.st.n} × ${num(c.st.gb)} GB)</td>${P.map(()=>'<td></td>').join('')}</tr>`;
   h += `<tr><td>Volume type</td>${P.map(p=>`<td>${out[p.k].store.label}</td>`).join('')}</tr>`;
   h += `<tr><td>IOPS / MB/s per volume</td>${P.map(p=>`<td>${num(out[p.k].store.iops)} / ${num(out[p.k].store.mbps)}</td>`).join('')}</tr>`;

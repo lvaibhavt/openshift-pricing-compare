@@ -1,6 +1,6 @@
 # OpenShift Pricing Compare
 
-Single-page tool comparing **Red Hat OpenShift on OCI (BYOM)** with managed OpenShift on
+Single-page tool comparing **Red Hat OpenShift on OCI (BYOL)** with managed OpenShift on
 **AWS (ROSA)**, **Azure (ARO)**, **Google Cloud (OSD)** and **IBM Cloud (ROKS)**.
 
 Open `index.html` in a browser (no build, no dependencies).
@@ -10,7 +10,7 @@ Open `index.html` in a browser (no build, no dependencies).
 - VM vs bare metal (bare metal only for infra & worker nodes)
 - OCI shape, OCPUs and memory per node (other clouds get the equivalent vCPU = 2 × OCPU)
 - Persistent volumes: count, size, target IOPS and MB/s per volume; boot disk per node
-- Red Hat subscription cost for OCI BYOM (per 2-core or per bare-metal socket pair)
+- Red Hat subscription cost for OCI BYOL (per 2-core or per bare-metal socket pair)
 
 ## Output
 Monthly / annual / 3-year cost per provider, broken down by masters, infra, workers,
