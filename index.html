@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenShift Pricing Compare</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2230;--mute:#667085;--line:#e3e6ec;--oci:#c74634;--aws:#ff9900;--azure:#0078d4;--gcp:#34a853;--ibm:#8a3ffc;--good:#12805c;--bad:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--ink:#e7eaf0;--mute:#98a2b3;--line:#2c3340}}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:20px 16px 8px;max-width:1280px;margin:auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:0 0 12px}h3{font-size:14px;margin:0 0 8px}
+.sub{color:var(--mute)}
+main{max-width:1280px;margin:auto;padding:8px 16px 40px;display:grid;gap:16px;grid-template-columns:minmax(0,420px) minmax(0,1fr)}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.role{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.role:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute)}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.full{grid-column:1/-1}
+.hint{font-size:12px;color:var(--mute);margin-top:6px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:12px;color:var(--mute);font-weight:600}
+tr.total td{font-weight:700}
+.scroll{overflow-x:auto}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.bar{height:26px;border-radius:5px;display:flex;align-items:center;padding:0 8px;color:#fff;font-size:12px;font-weight:600;min-width:2px;white-space:nowrap}
+.bars{display:grid;grid-template-columns:150px 1fr;gap:8px 10px;align-items:center}
+.good{color:var(--good)}.bad{color:var(--bad)}.na{color:var(--mute);font-style:italic}
+details summary{cursor:pointer;font-weight:600}
+.notes li{margin-bottom:4px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:5px 10px;cursor:pointer}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+</style>
+</head>
+<body>
+<header>
+  <h1>OpenShift Pricing Compare</h1>
+  <div class="sub">Red Hat OpenShift on OCI (BYOM) vs managed OpenShift on AWS (ROSA), Azure (ARO), Google Cloud (OSD) and IBM Cloud (ROKS). Indicative on‑demand list prices, US regions. Every rate is editable under <b>Rate card</b>.</div>
+</header>
+<main>
+<section class="card" id="inputs">
+  <h2>Cluster sizing (OCI view)</h2>
+  <div id="roles"></div>
+  <div class="role">
+    <h3>Block storage (OCI Block Volume)</h3>
+    <div class="grid">
+      <label>Additional block volume (GB)<input type="number" id="stGB" value="2000" min="0"></label>
+      <label>Performance (VPU/GB)
+        <select id="stVPU">
+          <option value="0">0 – Lower Cost</option>
+          <option value="10" selected>10 – Balanced</option>
+          <option value="20">20 – Higher Performance</option>
+          <option value="30">30 – Ultra High</option>
+          <option value="60">60 – Ultra High</option>
+          <option value="90">90 – Ultra High</option>
+          <option value="120">120 – Ultra High</option>
+        </select></label>
+      <label>Boot volume per node (GB)<input type="number" id="bootGB" value="120" min="50"></label>
+      <label>Hours / month<input type="number" id="hours" value="730" min="1"></label>
+    </div>
+    <div class="hint" id="vpuHint"></div>
+  </div>
+  <div class="role">
+    <h3>OpenShift subscription (OCI BYOM only)</h3>
+    <div class="grid">
+      <label>Red Hat OCP $/yr per 2‑core (4 vCPU)<input type="number" id="subCore" value="2500" min="0"></label>
+      <label>Red Hat OCP $/yr per bare‑metal socket‑pair<input type="number" id="subSocket" value="7500" min="0"></label>
+    </div>
+    <div class="hint">Enter your Red Hat quote. Subscriptions apply to worker nodes only; control‑plane and infra nodes are entitlement‑exempt.</div>
+  </div>
+</section>
+
+<section style="display:grid;gap:16px;align-content:start;min-width:0">
+  <div class="card">
+    <div class="tabs"><button data-p="month" class="on">Monthly</button><button data-p="year">Annual</button><button data-p="3yr">3‑year</button></div>
+    <div class="bars" id="bars"></div>
+  </div>
+  <div class="card scroll"><table id="tbl"></table></div>
+  <div class="card scroll"><h2>Equivalent shapes chosen</h2><table id="shapes"></table></div>
+  <div class="card">
+    <details><summary>Rate card (edit to match your region / quote)</summary><div id="rates" style="margin-top:12px"></div></details>
+  </div>
+  <div class="card notes">
+    <h2>Assumptions</h2>
+    <ul>
+      <li><b>OCI</b>: BYOM — you pay OCI compute + Block Volume, and bring your own Red Hat OpenShift subscription. 1 OCPU = 2 vCPU. Flex shapes priced per OCPU‑hr + per GB‑hr.</li>
+      <li><b>AWS ROSA (HCP)</b>: control plane hosted by Red Hat/AWS — $0.25/cluster‑hr, no master EC2. Workers pay EC2 + ROSA fee per 4 vCPU‑hr. Infra nodes pay EC2 only.</li>
+      <li><b>Azure ARO</b>: 3 masters run as customer VMs (no OpenShift fee). Workers pay VM + ARO fee. Bare metal not offered.</li>
+      <li><b>Google OSD (CCS)</b>: masters + infra on customer GCE VMs; workers pay VM + OSD fee. Bare metal not offered.</li>
+      <li><b>IBM ROKS</b>: masters managed by IBM at no charge; every worker/infra node pays VPC VM + OCP license. Bare metal available (Classic).</li>
+      <li>Other clouds get the same vCPU/RAM as OCI (OCPU × 2). Storage is mapped to the closest performance tier. Data egress, load balancers, support plans and discounts (reserved / commit) are excluded.</li>
+      <li>Prices are indicative list prices captured for planning; always verify with each provider's calculator.</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<script>
+const ROLES = [
+  {id:'master', name:'Master (control plane) nodes', count:3, bm:false, ocpu:4, ram:32},
+  {id:'infra',  name:'Infra nodes',  count:3, bm:true, ocpu:4,  ram:32},
+  {id:'worker', name:'Worker nodes', count:3, bm:true, ocpu:8,  ram:64},
+];
+
+// OCI VM flex shapes: $/OCPU-hr, $/GB-hr
+const OCI_VM = {
+  'VM.Standard.E5.Flex': {ocpu:0.03,  gb:0.002,  maxO:94,  maxR:1049},
+  'VM.Standard.E4.Flex': {ocpu:0.025, gb:0.0015, maxO:64,  maxR:1024},
+  'VM.Standard3.Flex':   {ocpu:0.04,  gb:0.0015, maxO:32,  maxR:512},
+  'VM.Optimized3.Flex':  {ocpu:0.054, gb:0.0015, maxO:18,  maxR:256},
+};
+// OCI bare-metal shapes (priced at the family OCPU/GB rate)
+const OCI_BM = {
+  'BM.Standard.E5.192': {ocpu:192, ram:2304, rO:0.03,  rG:0.002,  sockets:2},
+  'BM.Standard.E4.128': {ocpu:128, ram:2048, rO:0.025, rG:0.0015, sockets:2},
+  'BM.Standard3.64':    {ocpu:64,  ram:1024, rO:0.04,  rG:0.0015, sockets:2},
+  'BM.Optimized3.36':   {ocpu:36,  ram:512,  rO:0.054, rG:0.0015, sockets:2},
+};
+
+// Editable rate card
+const R = {
+  oci:   {blockGB:0.0255, vpu:0.0017},
+  aws:   {vcpu:0.037, gb:0.00275, bmPremium:1.0, cluster:0.25, fee4:0.171, gp3:0.08, iopsGB_io2:0.125, piops:0.065},
+  azure: {vcpu:0.037, gb:0.00275, fee4:0.35, ssdv2:0.081, iops:0.005},
+  gcp:   {vcpu:0.031611, gb:0.004237, fee4:0.171, balanced:0.10, ssd:0.17, extreme:0.125, iops:0.065},
+  ibm:   {vcpu:0.035, gb:0.0035, bmPremium:1.15, lic4:0.35, t3:0.08, t5:0.10, t10:0.13, custom:0.20},
+};
+const RATE_LABELS = {
+  oci:{blockGB:'Block Volume $/GB‑mo', vpu:'$/VPU per GB‑mo'},
+  aws:{vcpu:'EC2 m‑family $/vCPU‑hr', gb:'EC2 $/GB RAM‑hr', bmPremium:'Metal price multiplier', cluster:'ROSA HCP $/cluster‑hr', fee4:'ROSA worker fee $/4vCPU‑hr', gp3:'EBS gp3 $/GB‑mo', iopsGB_io2:'EBS io2 $/GB‑mo', piops:'io2 $/IOPS‑mo'},
+  azure:{vcpu:'Dsv5 $/vCPU‑hr', gb:'Dsv5 $/GB RAM‑hr', fee4:'ARO worker fee $/4vCPU‑hr', ssdv2:'Premium SSD v2 $/GB‑mo', iops:'SSD v2 $/IOPS‑mo (>3000)'},
+  gcp:{vcpu:'N2 $/vCPU‑hr', gb:'N2 $/GB RAM‑hr', fee4:'OSD fee $/4vCPU‑hr', balanced:'pd‑balanced $/GB‑mo', ssd:'pd‑ssd $/GB‑mo', extreme:'Hyperdisk Extreme $/GB‑mo', iops:'Hyperdisk $/IOPS‑mo'},
+  ibm:{vcpu:'VPC bx2 $/vCPU‑hr', gb:'VPC $/GB RAM‑hr', bmPremium:'Bare‑metal multiplier', lic4:'OCP license $/4vCPU‑hr', t3:'Block 3 IOPS/GB $/GB‑mo', t5:'Block 5 IOPS/GB $/GB‑mo', t10:'Block 10 IOPS/GB $/GB‑mo', custom:'Block custom IOPS $/GB‑mo'},
+};
+
+const P = [
+  {k:'oci', name:'OCI – OpenShift (BYOM)', c:'var(--oci)'},
+  {k:'aws', name:'AWS – ROSA', c:'var(--aws)'},
+  {k:'azure', name:'Azure – ARO', c:'var(--azure)'},
+  {k:'gcp', name:'Google – OSD', c:'var(--gcp)'},
+  {k:'ibm', name:'IBM – ROKS', c:'var(--ibm)'},
+];
+
+const $ = id => document.getElementById(id);
+const fmt = n => n==null ? '—' : '$' + Math.round(n).toLocaleString();
+
+function renderRoles(){
+  $('roles').innerHTML = ROLES.map(r => `
+    <div class="role" data-role="${r.id}">
+      <h3>${r.name}</h3>
+      <div class="grid">
+        <label>Count<input type="number" min="0" data-f="count" value="${r.count}"></label>
+        <label>Type<select data-f="type" ${r.bm?'':'disabled'}>
+          <option value="vm">Virtual machine</option>${r.bm?'<option value="bm">Bare metal</option>':''}</select></label>
+        <label class="full vmOnly">OCI VM shape<select data-f="vmShape">${Object.keys(OCI_VM).map(s=>`<option>${s}</option>`).join('')}</select></label>
+        <label class="vmOnly">OCPUs per node<input type="number" min="1" data-f="ocpu" value="${r.ocpu}"></label>
+        <label class="vmOnly">Memory per node (GB)<input type="number" min="1" data-f="ram" value="${r.ram}"></label>
+        <label class="full bmOnly" hidden>OCI bare‑metal shape<select data-f="bmShape">${Object.keys(OCI_BM).map(s=>`<option>${s} (${OCI_BM[s].ocpu} OCPU / ${OCI_BM[s].ram} GB)</option>`).join('')}</select></label>
+      </div>
+      ${r.bm?'':'<div class="hint">Bare metal is not offered for control‑plane nodes.</div>'}
+      <div class="hint" data-f="eq"></div>
+    </div>`).join('');
+}
+
+function renderRates(){
+  $('rates').innerHTML = Object.keys(R).map(p=>`
+    <h3 style="margin-top:10px">${P.find(x=>x.k===p).name}</h3>
+    <div class="grid">${Object.keys(R[p]).map(k=>`<label>${RATE_LABELS[p][k]}<input type="number" step="any" data-p="${p}" data-k="${k}" value="${R[p][k]}"></label>`).join('')}</div>`).join('');
+}
+
+function readRoles(){
+  return ROLES.map(r=>{
+    const el = document.querySelector(`[data-role="${r.id}"]`);
+    const v = f => el.querySelector(`[data-f="${f}"]`);
+    const type = v('type').value;
+    el.querySelectorAll('.vmOnly').forEach(x=>x.hidden = type==='bm');
+    el.querySelectorAll('.bmOnly').forEach(x=>x.hidden = type!=='bm');
+    let ocpu, ram, shape, rO, rG, sockets=0;
+    if(type==='bm'){
+      shape = v('bmShape').value.split(' ')[0]; const s = OCI_BM[shape];
+      ocpu=s.ocpu; ram=s.ram; rO=s.rO; rG=s.rG; sockets=s.sockets;
+    } else {
+      shape = v('vmShape').value; const s = OCI_VM[shape];
+      ocpu=Math.min(+v('ocpu').value||1, s.maxO); ram=Math.min(+v('ram').value||1, s.maxR); rO=s.ocpu; rG=s.gb;
+    }
+    const vcpu = ocpu*2;
+    v('eq').textContent = `= ${vcpu} vCPU / ${ram} GB per node on other clouds`;
+    return {id:r.id, name:r.name, count:Math.max(0,+v('count').value||0), type, shape, ocpu, ram, vcpu, rO, rG, sockets};
+  });
+}
+
+// IOPS per GB for OCI VPU levels (OCI docs: 0→2, 10→60, 20→75, 30+ → 90..225)
+const vpuIops = v => v===0?2 : v===10?60 : v===20?75 : Math.min(225, 90 + (v-30)*1.5);
+
+function storageCost(p, gb, vpu){
+  const iops = Math.min(gb*vpuIops(vpu), vpu>=30?300000:vpu>=20?50000:25000);
+  const r = R[p];
+  switch(p){
+    case 'oci': return {c: gb*(r.blockGB + r.vpu*vpu), tier:`Block Volume ${vpu} VPU`};
+    case 'aws':
+      if(vpu<=20){ const extra=Math.max(0,iops-3000*Math.ceil(gb/16384)); return {c: gb*r.gp3 + extra*0.005, tier:'EBS gp3'}; }
+      return {c: gb*r.iopsGB_io2 + iops*r.piops, tier:'EBS io2'};
+    case 'azure': return {c: gb*r.ssdv2 + Math.max(0,iops-3000)*r.iops, tier:'Premium SSD v2'};
+    case 'gcp':
+      if(vpu<=10) return {c: gb*r.balanced, tier:'pd-balanced'};
+      if(vpu<=20) return {c: gb*r.ssd, tier:'pd-ssd'};
+      return {c: gb*r.extreme + iops*r.iops, tier:'Hyperdisk Extreme'};
+    case 'ibm':
+      if(vpu===0) return {c: gb*r.t3, tier:'3 IOPS/GB'};
+      if(vpu<=10) return {c: gb*r.t5, tier:'5 IOPS/GB'};
+      if(vpu<=20) return {c: gb*r.t10, tier:'10 IOPS/GB'};
+      return {c: gb*r.custom, tier:'Custom IOPS'};
+  }
+}
+
+function calc(){
+  const roles = readRoles(), H = +$('hours').value||730;
+  const gb = +$('stGB').value||0, vpu = +$('stVPU').value, boot = +$('bootGB').value||0;
+  $('vpuHint').textContent = `${vpu} VPU ≈ ${vpuIops(vpu)} IOPS/GB on OCI. Other clouds mapped to a comparable tier.`;
+  const nodes = roles.reduce((a,r)=>a+r.count,0);
+  const out = {};
+  for(const {k} of P){
+    const o = {master:0, infra:0, worker:0, fee:0, storage:0, na:null, shapes:{}};
+    const r = R[k];
+    for(const role of roles){
+      if(!role.count) continue;
+      const bm = role.type==='bm';
+      if(k==='oci'){
+        o[role.id] = role.count*H*(role.ocpu*role.rO + role.ram*role.rG);
+        o.shapes[role.id] = bm ? role.shape : `${role.shape} ${role.ocpu} OCPU/${role.ram} GB`;
+        if(role.id==='worker') o.fee += bm ? role.count*role.sockets/2*(+$('subSocket').value)/12
+                                           : role.count*Math.ceil(role.vcpu/4)*(+$('subCore').value)/12;
+        continue;
+      }
+      if(bm && (k==='azure'||k==='gcp')){ o.na = 'Bare metal not offered on this managed service'; continue; }
+      const mult = bm ? (r.bmPremium||1) : 1;
+      const vmHr = (role.vcpu*r.vcpu + role.ram*r.gb)*mult;
+      const managedMaster = role.id==='master' && (k==='aws'||k==='ibm');
+      o[role.id] = managedMaster ? 0 : role.count*H*vmHr;
+      o.shapes[role.id] = managedMaster ? 'Managed by provider' : `${bm?'Bare metal':'VM'} ${role.vcpu} vCPU/${role.ram} GB`;
+      const unit4 = role.count*Math.ceil(role.vcpu/4)*H;
+      if(k==='ibm' && role.id!=='master') o.fee += unit4*r.lic4;
+      else if(role.id==='worker' && k!=='ibm') o.fee += unit4*r.fee4;
+    }
+    if(k==='aws') o.fee += r.cluster*H;
+    const st = storageCost(k, gb, vpu);
+    const bootNodes = (k==='aws'||k==='ibm') ? nodes - (roles[0].count) : nodes;
+    const bt = storageCost(k, bootNodes*boot, k==='oci'?10:10);
+    o.storage = st.c + bt.c; o.tier = st.tier;
+    o.compute = o.master+o.infra+o.worker;
+    o.total = o.na ? null : o.compute + o.fee + o.storage;
+    out[k]=o;
+  }
+  render(out);
+}
+
+let period = 'month';
+const mult = () => period==='month'?1: period==='year'?12:36;
+
+function render(out){
+  const m = mult(), base = out.oci.total;
+  const rows = [
+    ['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],
+    ['OpenShift fee / subscription','fee'],['Storage (block + boot)','storage']];
+  const lbl = period==='month'?'Monthly':period==='year'?'Annual':'3‑year';
+  let h = `<thead><tr><th>${lbl} cost</th>${P.map(p=>`<th><span class="dot" style="background:${p.c}"></span>${p.name}</th>`).join('')}</tr></thead><tbody>`;
+  for(const [n,f] of rows) h += `<tr><td>${n}</td>${P.map(p=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k][f]*m)}</td>`).join('')}</tr>`;
+  h += `<tr class="total"><td>Total</td>${P.map(p=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k].total*m)}</td>`).join('')}</tr>`;
+  h += `<tr><td>vs OCI</td>${P.map(p=>{
+    const t=out[p.k].total; if(p.k==='oci') return '<td>baseline</td>'; if(t==null) return `<td class="na">${out[p.k].na}</td>`;
+    const d=(t-base)/base*100; return `<td class="${d>0?'good':'bad'}">${d>0?'+':''}${d.toFixed(0)}% (${d>0?'+':'−'}${fmt(Math.abs(t-base)*m)})</td>`;}).join('')}</tr></tbody>`;
+  $('tbl').innerHTML = h;
+
+  const max = Math.max(...P.map(p=>out[p.k].total||0));
+  $('bars').innerHTML = P.map(p=>{
+    const t=out[p.k].total;
+    return `<div>${p.name}</div><div>${t==null?`<span class="na">${out[p.k].na}</span>`:`<div class="bar" style="width:${Math.max(8,t/max*100)}%;background:${p.c}">${fmt(t*m)}</div>`}</div>`;}).join('');
+
+  let s = `<thead><tr><th>Role</th>${P.map(p=>`<th>${p.name}</th>`).join('')}</tr></thead><tbody>`;
+  for(const r of ['master','infra','worker']) s += `<tr><td>${r[0].toUpperCase()+r.slice(1)}</td>${P.map(p=>`<td>${out[p.k].shapes[r]||'—'}</td>`).join('')}</tr>`;
+  s += `<tr><td>Storage tier</td>${P.map(p=>`<td>${out[p.k].tier}</td>`).join('')}</tr></tbody>`;
+  $('shapes').innerHTML = s;
+}
+
+renderRoles(); renderRates();
+document.body.addEventListener('input', e=>{
+  if(e.target.dataset.p && e.target.dataset.k) R[e.target.dataset.p][e.target.dataset.k] = +e.target.value;
+  calc();
+});
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); period=b.dataset.p; calc();});
+calc();
+</script>
+</body>
+</html>
