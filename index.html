@@ -568,7 +568,10 @@ function deckReport(skipCalc){
   }
   sec(`STORAGE  —  ${c.st.n} × ${num(c.st.gb)} GB volumes, matched to OCI ${c.st.vpu} VPU (${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s each)`);
   row('Volume type / IOPS / MB/s', k=>c.st.n?`${out[k].store.label.replace(/ \(.*\)$/,'')} · ${num(out[k].store.iops)} / ${num(out[k].store.mbps)}`:'—');
-  row('Block + boot / month', k=>fmt(out[k].storage+out[k].boot));
+  row('Block storage / month', k=>fmt(out[k].storage));
+  const bootType={oci:'Balanced 10 VPU',aws:'gp3',azure:'Premium SSD v2',gcp:'pd‑balanced',ibm:'general‑purpose'}, bgb=+$('bootGB').value||0;
+  row('Boot volumes', k=>out[k].nodes?`${out[k].nodes} × ${num(bgb)} GB ${bootType[k]}`:'—');
+  row('Boot volumes / month', k=>fmt(out[k].boot));
   sec(`ON-DEMAND PRICING  (${H} HRS / MONTH)`);
   row('OpenShift fee / licence', k=>k==='oci'?'BYOL'+mark('OpenShift on OCI is BYOL only: customer brings an existing Red Hat subscription; no licence cost is included.'):fmt(out[k].fee));
   row('Cluster / month', k=>fmt(out[k].total), {strong:true});
