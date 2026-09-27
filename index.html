@@ -40,6 +40,7 @@ tr.sec td{font-size:12px;color:var(--mute);font-weight:600;padding-top:14px}
 .bars{display:grid;grid-template-columns:170px 1fr;gap:8px 10px;align-items:center}
 .bar{height:26px;border-radius:5px;display:flex;align-items:center;padding:0 8px;color:#fff;font-size:12px;font-weight:600;white-space:nowrap}
 .na{color:var(--mute);font-style:italic}
+.bmwarn{color:var(--bad);font-weight:600;font-size:12px;border:1px solid var(--bad);border-radius:6px;padding:6px 8px}
 .good{color:var(--good)}.bad{color:var(--bad)}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
 .tabs button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:5px 10px;cursor:pointer}
@@ -81,8 +82,8 @@ details summary{cursor:pointer;font-weight:600}
   <ul>
     <li><b>OCI</b>: BYOM. OCI compute + Block Volume + your own Red Hat subscription (workers only; masters and infra are exempt). OCI prices are identical in every region. Regions: all OC1 commercial regions (OCI regions documentation).</li>
     <li><b>AWS ROSA</b>: regions per AWS ROSA endpoints page. HCP isn't offered in us‑west‑1. HCP = hosted control plane at $0.25/cluster‑hr; Classic = masters on your EC2 + $0.03/cluster‑hr. Workers pay EC2 + ROSA fee per 4 vCPU.</li>
-    <li><b>Azure ARO</b>: shapes per ARO support policy (masters must be ≥ 8 vCPU D/E‑series). Regions per Azure products‑by‑region; confirm with <code>az provider show -n Microsoft.RedHatOpenShift</code>. Workers pay VM + ARO fee. No bare metal.</li>
-    <li><b>Google OSD</b>: regions per OpenShift Dedicated service definition. Masters and infra on your GCE VMs; workers pay VM + OSD fee. No bare metal.</li>
+    <li><b>Azure ARO</b>: shapes per ARO support policy (masters must be ≥ 8 vCPU D/E‑series). Regions per Azure products‑by‑region; confirm with <code>az provider show -n Microsoft.RedHatOpenShift</code>. Workers pay VM + ARO fee. Bare metal isn't supported: if chosen, those nodes are priced on the VM shape you pick and flagged in red.</li>
+    <li><b>Google OSD</b>: regions per OpenShift Dedicated service definition. Masters and infra on your GCE VMs; workers pay VM + OSD fee. Bare metal isn't supported: priced on the chosen VM shape and flagged in red.</li>
     <li><b>IBM ROKS</b>: VPC regions per IBM Cloud docs. Masters managed at no charge; infra and workers pay VM + OCP license. Bare metal on Classic.</li>
     <li>Non‑US regional prices use approximate uplifts over the cheapest US region. Storage IOPS/throughput limits are per volume. Excludes egress, load balancers, snapshots, support and reserved/committed discounts.</li>
   </ul>
@@ -334,9 +335,10 @@ function renderProviders(){
       if(!need.count){ h += `<label>${r.name}<select disabled><option>— not required (count is 0) —</option></select></label>`; continue; }
       const managed = r.id==='master' && (k==='ibm' || (k==='aws' && model==='hcp'));
       if(managed){ h += `<label>${r.name}<div class="fixed">Managed by provider – no shape to pick</div></label>`; continue; }
-      if(need.type==='bm' && (k==='azure'||k==='gcp')){ h += `<label>${r.name} (bare metal)<div class="fixed na">Not offered on this service</div></label>`; continue; }
-      const list = shapeList(k,need.type,r.id), best = bestFit(k,need.type,need,r.id);
-      h += `<label>${r.name} – ${need.type==='bm'?'bare‑metal':'VM'} shape<select id="${k}-${r.id}-shape">${list.map(s=>{
+      const noBM = need.type==='bm' && (k==='azure'||k==='gcp'), t = noBM ? 'vm' : need.type;
+      if(noBM) h += `<div class="bmwarn">❗ Bare metal is not supported on ${k==='azure'?'ARO':'OSD'}. ${r.name} are priced on the VM shape below.</div>`;
+      const list = shapeList(k,t,r.id), best = bestFit(k,t,need,r.id);
+      h += `<label>${r.name} – ${t==='bm'?'bare‑metal':'VM'} shape<select id="${k}-${r.id}-shape">${list.map(s=>{
         if(s.flex) return opt(s.n, `${s.n} (${need.cores} OCPU / ${need.ram} GB)`, s.n===best);
         const short = s.v<need.vcpu || s.g<need.ram;
         return opt(s.n, `${short?'⚠ ':''}${s.n} – ${s.v} vCPU / ${s.g} GB`, s.n===best);
@@ -382,7 +384,7 @@ function calc(){
     for(const r of ROLES){
       const need = c[r.id]; if(!need.count) continue;
       const sel = $(`${k}-${r.id}-shape`);
-      if(!sel){ if(need.type==='bm' && (k==='azure'||k==='gcp')) o.na = 'No bare metal on this service'; continue; }
+      if(!sel) continue;
       o.nodes += need.count;
       let hr, vcpu;
       if(k==='oci'){
@@ -390,7 +392,8 @@ function calc(){
         else { const s=OCI_BM.find(x=>x[0]===sel.value); hr=s[1]*s[3]+s[2]*s[4]; vcpu=s[1]*2; }
         if(r.id==='worker') o.fee += need.type==='bm' ? need.count*R.oci.subSocketPair/12 : need.count*Math.ceil(need.cores/2)*R.oci.sub2core/12;
       } else {
-        const s = CAT[k][need.type].find(x=>x[0]===sel.value); hr=s[3]; vcpu=s[1];
+        const s = CAT[k][CAT[k][need.type].length?need.type:'vm'].find(x=>x[0]===sel.value);
+        if(need.type==='bm' && !CAT[k].bm.length) o.warn.push(`${r.name}: bare metal not supported – priced on VM`); hr=s[3]; vcpu=s[1];
         if(s[1]<need.vcpu||s[2]<need.ram) o.warn.push(`${r.name}: ${s[0]} is below requirement`);
         const units = need.count*Math.ceil(vcpu/4)*H;
         if(k==='ibm') o.fee += units*R.ibm.lic4; else if(r.id==='worker') o.fee += units*R[k].fee4;
