@@ -73,6 +73,9 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 .prov .fixed{height:36px;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
 .chk{flex-direction:row;align-items:center;gap:8px;font-size:12px;color:var(--ink)}
 .chk input{width:16px;height:16px;flex:none}
+.headrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.dl{font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 16px;background:var(--oci);color:#fff;cursor:pointer}
+.dl:hover{filter:brightness(1.1)}.dl:disabled{opacity:.6;cursor:wait}
 </style>
 </head>
 <body>
@@ -93,7 +96,7 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 </section>
 
 <section class="card">
-  <h2><span class="step">3</span>Pricing</h2>
+  <div class="headrow"><h2><span class="step">3</span>Pricing</h2><button id="pptBtn" class="dl">⬇ Download PPT</button></div>
   <div class="tabs" style="margin-top:10px"><button data-p="1" class="on">Monthly</button><button data-p="12">Annual</button><button data-p="36">3‑year</button></div>
   <div class="bars" id="bars"></div>
 </section>
@@ -434,7 +437,7 @@ function calc(){
   render(out, c);
 }
 
-let M = 1;
+let M = 1, LAST = null;
 function render(out, c){
   const base = out.oci.total, lbl = M===1?'Monthly':M===12?'Annual':'3‑year';
   const max = Math.max(...P.map(p=>out[p.k].total||0));
@@ -453,6 +456,7 @@ function render(out, c){
   h += `<tr><td>vs OCI</td>${P.map(p=>{const t=out[p.k].total; if(p.k==='oci') return '<td>baseline</td>'; if(t==null) return '<td class="na">—</td>';
     const d=(t-base)/base*100; return `<td class="${d>0?'good':'bad'}">${d>0?'+':''}${d.toFixed(0)}% (${d>0?'+':'−'}${fmt(Math.abs(t-base)*M)})</td>`;}).join('')}</tr></tbody>`;
   $('tbl').innerHTML = h;
+  LAST = {out, c};
 }
 
 $('rates').innerHTML = Object.keys(R).map(k=>`<h3 style="margin-top:10px">${P.find(p=>p.k===k).name}</h3><div class="grid">${Object.keys(R[k]).map(f=>`<label>${RL[k][f]}<input type="number" step="any" data-rk="${k}" data-rf="${f}" value="${R[k][f]}"></label>`).join('')}</div>`).join('');
@@ -466,6 +470,83 @@ $('provs').addEventListener('change', e=>{
 $('provs').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') calc(); });
 $('rates').addEventListener('input', e=>{ R[e.target.dataset.rk][e.target.dataset.rf] = +e.target.value; calc(); });
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); M=+b.dataset.p; calc();});
+
+// ---------- PPT export ----------
+async function downloadPPT(){
+  const btn=$('pptBtn'); btn.disabled=true; btn.textContent='Building…';
+  try{
+    if(!window.PptxGenJS){ await new Promise((ok,err)=>{const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'; sc.onload=ok; sc.onerror=err; document.head.appendChild(sc);}); }
+    calc(); const {out,c}=LAST, H=+$('hours').value||730;
+    const pptx=new PptxGenJS(); pptx.layout='LAYOUT_WIDE';
+    const INK='1C2230', MUTE='667085', RED='C74634';
+    const COL={oci:'C74634',aws:'E68A00',azure:'0078D4',gcp:'34A853',ibm:'8A3FFC'};
+    const hdr=(t)=>({text:t,options:{bold:true,color:'FFFFFF',fill:{color:INK},fontSize:11}});
+    const cellO={fontSize:10,color:INK,valign:'middle'};
+    const title=(sl,t,sub)=>{ sl.addText(t,{x:.5,y:.3,w:12.3,h:.6,fontSize:24,bold:true,color:INK}); if(sub) sl.addText(sub,{x:.5,y:.85,w:12.3,h:.4,fontSize:12,color:MUTE}); };
+    const typeName={vm:'Virtual machine',bm:'Bare metal',both:'VM + Bare metal'};
+    const date=new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+
+    // 1. Title
+    let sl=pptx.addSlide();
+    sl.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.33,h:.18,fill:{color:RED}});
+    sl.addText('OpenShift Pricing Comparison',{x:.6,y:2.2,w:12,h:1,fontSize:36,bold:true,color:INK});
+    sl.addText('OCI (BYOL) vs AWS ROSA · Azure ARO · Google OSD · IBM ROKS',{x:.6,y:3.2,w:12,h:.5,fontSize:18,color:MUTE});
+    sl.addText(`${date}  ·  Indicative on‑demand list prices, ${H} hrs/month`,{x:.6,y:3.8,w:12,h:.4,fontSize:12,color:MUTE});
+
+    // 2. Requirements: CPU / RAM
+    sl=pptx.addSlide(); title(sl,'Cluster requirements','Physical cores: 1 core = 1 OCI OCPU = 2 vCPU on other clouds');
+    const rows=[[hdr('Node role'),hdr('Count'),hdr('Machine type'),hdr('Cores / node'),hdr('vCPU / node'),hdr('RAM / node'),hdr('Total cores'),hdr('Total vCPU'),hdr('Total RAM')]];
+    let tc=0,tv=0,tr=0;
+    for(const r of ROLES){ const n=c[r.id]; tc+=n.count*n.cores; tv+=n.count*n.vcpu; tr+=n.count*n.ram;
+      rows.push([r.name,String(n.count),typeName[n.type],String(n.cores),String(n.vcpu),n.ram+' GB',String(n.count*n.cores),String(n.count*n.vcpu),num(n.count*n.ram)+' GB'].map(t=>({text:t,options:cellO}))); }
+    rows.push(['Cluster total','','','','','',String(tc),String(tv),num(tr)+' GB'].map(t=>({text:t,options:{...cellO,bold:true}})));
+    sl.addTable(rows,{x:.5,y:1.5,w:12.3,colW:[1.8,.8,1.7,1.2,1.2,1.2,1.4,1.4,1.6],border:{type:'solid',pt:.5,color:'E3E6EC'},rowH:.4});
+    sl.addText(`Persistent storage: ${c.st.n} × ${num(c.st.gb)} GB volumes, target ${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s per volume  ·  Boot disk ${$('bootGB').value} GB per node`,{x:.5,y:4.2,w:12.3,h:.4,fontSize:12,color:MUTE});
+
+    // 3. Shapes chosen per cloud with CPU / RAM
+    sl=pptx.addSlide(); title(sl,'Shapes selected per cloud','What each node actually gets (vCPU / RAM) on each provider');
+    const shapeRows=[[hdr(''),...P.map(p=>hdr(p.name))]];
+    shapeRows.push([{text:'Region',options:{...cellO,bold:true}},...P.map(p=>({text:$(`${p.k}-region`).value,options:cellO}))]);
+    shapeRows.push([{text:'Deployment',options:{...cellO,bold:true}},...P.map(p=>({text:p.k==='aws'?($('aws-model').value==='hcp'?'ROSA HCP':'ROSA Classic'):{oci:'Self‑managed (BYOL)',azure:'ARO',gcp:'OSD (CCS)',ibm:'ROKS (VPC)'}[p.k],options:cellO}))]);
+    for(const r of ROLES){
+      shapeRows.push([{text:`${r.name} (×${c[r.id].count})`,options:{...cellO,bold:true}},...P.map(p=>{
+        const sel=$(`${p.k}-${r.id}-shape`); let t;
+        if(!c[r.id].count) t='—';
+        else if(!sel) t='Managed by provider';
+        else { t=sel.options[sel.selectedIndex].text.replace('⚠ ','').replace(' – ','\n'); if(p.k==='oci' && OCI_VM[sel.value]) t=`${sel.value}\n${c[r.id].cores} OCPU (${c[r.id].vcpu} vCPU) / ${c[r.id].ram} GB`; else if(p.k==='oci'){ const b=OCI_BM.find(x=>x[0]===sel.value); t=`${b[0]}\n${b[1]} OCPU (${b[1]*2} vCPU) / ${num(b[2])} GB`; } }
+        return {text:t,options:{...cellO,fontSize:9}};
+      })]);
+    }
+    shapeRows.push([{text:'Storage (per volume)',options:{...cellO,bold:true}},...P.map(p=>{const st=out[p.k].store; return {text:`${st.label}\n${num(st.iops)} IOPS / ${num(st.mbps)} MB/s`,options:{...cellO,fontSize:9}};})]);
+    sl.addTable(shapeRows,{x:.5,y:1.4,w:12.3,colW:[2.05,2.05,2.05,2.05,2.05,2.05],border:{type:'solid',pt:.5,color:'E3E6EC'}});
+
+    // 4. Cost breakdown
+    for(const [mult,lab] of [[1,'Monthly'],[12,'Annual']]){
+      sl=pptx.addSlide(); title(sl,`${lab} cost comparison`,'USD, on‑demand list prices; OCI excludes Red Hat licence unless noted (BYOL)');
+      const v=(p,f)=>out[p.k].na?'n/a':fmt(out[p.k][f]*mult);
+      const lines=[['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee'],['Block storage','storage'],['Boot disks','boot']];
+      const t=[[hdr(`${lab} cost`),...P.map(p=>hdr(p.name))]];
+      for(const [n,f] of lines) t.push([{text:n,options:cellO},...P.map(p=>({text:(p.k==='oci'&&f==='fee'&&!$('oci-sub').checked)?'BYOL (own licence)':v(p,f),options:{...cellO,align:'right'}}))]);
+      t.push([{text:'Total',options:{...cellO,bold:true}},...P.map(p=>({text:out[p.k].total==null?'n/a':fmt(out[p.k].total*mult),options:{...cellO,bold:true,align:'right'}}))]);
+      const base=out.oci.total;
+      t.push([{text:'vs OCI',options:cellO},...P.map(p=>{const x=out[p.k].total; if(p.k==='oci') return {text:'baseline',options:{...cellO,align:'right'}}; const d=(x-base)/base*100; return {text:`${d>0?'+':''}${d.toFixed(0)}%`,options:{...cellO,align:'right',color:d>0?'12805C':'B42318',bold:true}};})]);
+      sl.addTable(t,{x:.5,y:1.4,w:12.3,colW:[2.55,1.95,1.95,1.95,1.95,1.95],border:{type:'solid',pt:.5,color:'E3E6EC'},rowH:.38});
+    }
+
+    // 5. Chart
+    sl=pptx.addSlide(); title(sl,'Monthly total by cloud',`Cluster: ${tc} cores / ${tv} vCPU / ${num(tr)} GB RAM across ${ROLES.reduce((a,r)=>a+c[r.id].count,0)} nodes`);
+    sl.addChart(pptx.ChartType.bar,[{name:'Monthly USD',labels:P.map(p=>p.name),values:P.map(p=>Math.round(out[p.k].total||0))}],
+      {x:.5,y:1.4,w:12.3,h:5.6,barDir:'bar',chartColors:P.map(p=>COL[p.k]),showValue:true,dataLabelFormatCode:'$#,##0',valAxisLabelFormatCode:'$#,##0',catAxisLabelFontSize:12,dataLabelFontSize:11,showLegend:false,varyColors:true});
+
+    // 6. Assumptions
+    sl=pptx.addSlide(); title(sl,'Assumptions');
+    sl.addText([...document.querySelectorAll('.notes li')].map(li=>({text:li.innerText,options:{bullet:true,breakLine:true}})),{x:.5,y:1.2,w:12.3,h:5.8,fontSize:12,color:INK,valign:'top',paraSpaceAfter:6});
+
+    await pptx.writeFile({fileName:`OpenShift-Pricing-Compare-${new Date().toISOString().slice(0,10)}.pptx`});
+  }catch(e){ alert('Could not build the PPT: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='⬇ Download PPT'; }
+}
+$('pptBtn').onclick = downloadPPT;
 renderProviders(); calc();
 </script>
 </body>
