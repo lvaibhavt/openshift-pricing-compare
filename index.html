@@ -48,6 +48,29 @@ tr.sec td{font-size:12px;color:var(--mute);font-weight:600;padding-top:14px}
 details summary{cursor:pointer;font-weight:600}
 .notes li{margin-bottom:4px}
 @media (max-width:600px){.bars{grid-template-columns:1fr}}
+
+/* ---- aligned form system ---- */
+input,select{height:36px;box-sizing:border-box}
+select:disabled{opacity:1;color:var(--mute);background:var(--card);cursor:not-allowed}
+label>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subhead{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin:18px 0 8px}
+.subhead:first-child{margin-top:0}.subhead span{text-transform:none;font-weight:500;letter-spacing:0}
+table.req{min-width:760px}
+table.req th{text-align:left;font-size:12px;color:var(--mute);font-weight:600;padding:0 10px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+table.req td{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+table.req tbody tr:last-child td{border-bottom:0}
+table.req td.role{font-weight:600;width:140px}
+table.req td:nth-child(2){width:90px}table.req td:nth-child(3){width:180px}
+table.req td:nth-child(4),table.req td:nth-child(5){width:150px}
+table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums}
+.fields{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.prov label{gap:4px}
+@media (min-width:1200px){.provs{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.prov select{font-size:13px}
+.prov h4{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+.prov .fixed{height:36px;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
 </style>
 </head>
 <body>
@@ -58,7 +81,7 @@ details summary{cursor:pointer;font-weight:600}
 <section class="card">
   <h2><span class="step">1</span>Common requirements</h2>
   <p class="desc">What the OpenShift cluster needs, independent of cloud. Sizes are physical cores (1 core = 1 OCI OCPU = 2 vCPU elsewhere). Storage performance is a per‑volume target that every cloud is sized to meet.</p>
-  <div class="common" id="common"></div>
+  <div id="common"></div>
 </section>
 
 <section class="card">
@@ -261,32 +284,26 @@ const num = n => Math.round(n).toLocaleString();
 const opt = (v,t,sel) => `<option value="${v}"${sel?' selected':''}>${t}</option>`;
 
 // ---------- Step 1 ----------
-$('common').innerHTML = ROLES.map(r=>`
-  <div class="box">
-    <h3>${r.name}</h3>
-    <div class="grid">
-      <label>Count<input type="number" min="0" id="${r.id}-count" value="${r.count}"></label>
-      ${r.bm ? `<label>Machine type<select id="${r.id}-type">${opt('vm','Virtual machine',1)}${opt('bm','Bare metal')}</select></label>` : `<label>Machine type<div class="fixed">Virtual machine</div></label>`}
-      <label>Physical cores / node<input type="number" min="1" id="${r.id}-cores" value="${r.cores}"></label>
-      <label>Memory GB / node<input type="number" min="1" id="${r.id}-ram" value="${r.ram}"></label>
-    </div>
-    <div class="hint" id="${r.id}-hint"></div>
-  </div>`).join('') + `
-  <div class="box">
-    <h3>Persistent block storage</h3>
-    <div class="grid">
-      <label>Number of volumes<input type="number" min="0" id="stN" value="4"></label>
-      <label>GB per volume<input type="number" min="1" id="stGB" value="500"></label>
-      <label>Target IOPS / volume<input type="number" min="0" id="stI" value="10000"></label>
-      <label>Target MB/s / volume<input type="number" min="0" id="stT" value="200"></label>
-    </div>
-  </div>
-  <div class="box">
-    <h3>Other</h3>
-    <div class="grid">
-      <label>Boot disk / node (GB)<input type="number" min="50" id="bootGB" value="120"></label>
-      <label>Hours / month<input type="number" min="1" id="hours" value="730"></label>
-    </div>
+$('common').innerHTML = `
+  <div class="subhead">Compute</div>
+  <div class="scroll"><table class="req">
+    <thead><tr><th>Node role</th><th>Count</th><th>Machine type</th><th>Physical cores / node</th><th>Memory (GB) / node</th><th>Equivalent on AWS · Azure · Google · IBM</th></tr></thead>
+    <tbody>${ROLES.map(r=>`<tr>
+      <td class="role">${r.name}</td>
+      <td><input type="number" min="0" id="${r.id}-count" value="${r.count}"></td>
+      <td>${r.bm ? `<select id="${r.id}-type">${opt('vm','Virtual machine',1)}${opt('bm','Bare metal')}</select>` : `<select disabled title="Masters are always VMs"><option>Virtual machine</option></select>`}</td>
+      <td><input type="number" min="1" id="${r.id}-cores" value="${r.cores}"></td>
+      <td><input type="number" min="1" id="${r.id}-ram" value="${r.ram}"></td>
+      <td class="eq" id="${r.id}-hint"></td></tr>`).join('')}</tbody>
+  </table></div>
+  <div class="subhead">Persistent block storage <span>(per volume)</span> &amp; other</div>
+  <div class="fields">
+    <label><span>Volumes</span><input type="number" min="0" id="stN" value="4"></label>
+    <label><span>GB per volume</span><input type="number" min="1" id="stGB" value="500"></label>
+    <label><span>Target IOPS</span><input type="number" min="0" id="stI" value="10000"></label>
+    <label><span>Target MB/s</span><input type="number" min="0" id="stT" value="200"></label>
+    <label><span>Boot disk / node (GB)</span><input type="number" min="50" id="bootGB" value="120"></label>
+    <label><span>Hours / month</span><input type="number" min="1" id="hours" value="730"></label>
   </div>`;
 
 function common(){
@@ -327,14 +344,15 @@ function renderProviders(){
     const k=p.k;
     let regs = REGIONS[k]; if(k==='aws' && model==='hcp') regs = regs.filter(r=>r[3]);
     let h = `<div class="prov" style="--c:${p.c}"><h3>${p.name}</h3>`;
-    if(k==='aws') h += `<label>ROSA deployment model<select id="aws-model">${opt('hcp','Hosted control plane (HCP)',model==='hcp')}${opt('classic','Classic (masters in your account)',model==='classic')}</select></label>`;
+    h += k==='aws' ? `<label><span>Deployment model</span><select id="aws-model">${opt('hcp','ROSA – Hosted control plane (HCP)',model==='hcp')}${opt('classic','ROSA – Classic',model==='classic')}</select></label>`
+      : `<label><span>Deployment model</span><select disabled><option>${{oci:'Self‑managed OpenShift (BYOM)',azure:'ARO – managed',gcp:'OSD – Customer Cloud Subscription',ibm:'ROKS – VPC'}[k]}</option></select></label>`;
     h += `<label>Region (${regs.length} available)<select id="${k}-region">${regs.map(r=>opt(r[0], r[1]+(r[2]!==1?` · +${Math.round((r[2]-1)*100)}%`:''), r[0]===keep[k])).join('')}</select></label>`;
     h += `<h4>Compute</h4>`;
     for(const r of ROLES){
       const need = c[r.id];
       if(!need.count){ h += `<label>${r.name}<select disabled><option>— not required (count is 0) —</option></select></label>`; continue; }
       const managed = r.id==='master' && (k==='ibm' || (k==='aws' && model==='hcp'));
-      if(managed){ h += `<label>${r.name}<div class="fixed">Managed by provider – no shape to pick</div></label>`; continue; }
+      if(managed){ h += `<label>${r.name}<div class="fixed">Managed by provider</div></label>`; continue; }
       const noBM = need.type==='bm' && (k==='azure'||k==='gcp'), t = noBM ? 'vm' : need.type;
       if(noBM) h += `<div class="bmwarn">❗ Bare metal is not supported on ${k==='azure'?'ARO':'OSD'}. ${r.name} are priced on the VM shape below.</div>`;
       const list = shapeList(k,t,r.id), best = bestFit(k,t,need,r.id);
@@ -376,7 +394,7 @@ function bootCost(k, gb){ // simple balanced boot disks
 
 function calc(){
   const c = common(), H = +$('hours').value||730, boot = +$('bootGB').value||0;
-  for(const r of ROLES) $(`${r.id}-hint`).textContent = `= ${c[r.id].vcpu} vCPU / ${c[r.id].ram} GB on AWS, Azure, Google, IBM`;
+  for(const r of ROLES) $(`${r.id}-hint`).textContent = `${c[r.id].vcpu} vCPU / ${c[r.id].ram} GB`;
   const out = {};
   for(const {k} of P){
     const reg = REGIONS[k].find(r=>r[0]===$(`${k}-region`).value)?.[2] ?? 1;
