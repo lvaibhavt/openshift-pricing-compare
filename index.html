@@ -10,8 +10,8 @@
 :root[data-theme="dark"]{--bg:#12151b;--card:#1b2029;--ink:#e7eaf0;--mute:#98a2b3;--line:#2c3340;--warn:#f79009;--good:#32d583;--bad:#f97066}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-.wrap{max-width:1320px;margin:auto;padding:20px 16px 48px}
-h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:0 0 4px}h3{font-size:14px;margin:0 0 8px}
+.wrap{max-width:1360px;margin:auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:0 0 4px}h3{font-size:14px;margin:0 0 8px}h4{font-size:12px;margin:6px 0 0;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
 .sub{color:var(--mute);margin-bottom:18px}
 .step{display:inline-block;background:var(--ink);color:var(--bg);border-radius:999px;font-size:12px;font-weight:700;padding:2px 9px;margin-right:8px;vertical-align:2px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;min-width:0}
@@ -21,10 +21,11 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:0 0 4px}h3{font-size:1
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
 label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute)}
 input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+input:disabled{opacity:.6}
 .full{grid-column:1/-1}
-.hint{font-size:12px;color:var(--mute);margin-top:6px}
+.hint{font-size:12px;color:var(--mute);margin-top:4px}
 .warn{color:var(--warn)}
-.provs{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:14px}
+.provs{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
 .prov{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .prov h3{margin:0}
 .fixed{font-size:13px;padding:6px 8px;border:1px dashed var(--line);border-radius:6px;color:var(--mute)}
@@ -33,6 +34,7 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white
 th:first-child,td:first-child{text-align:left}
 thead th{font-size:12px;color:var(--mute);font-weight:600}
 tr.total td{font-weight:700;font-size:15px}
+tr.sec td{font-size:12px;color:var(--mute);font-weight:600;padding-top:14px}
 .scroll{overflow-x:auto}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .bars{display:grid;grid-template-columns:170px 1fr;gap:8px 10px;align-items:center}
@@ -54,13 +56,13 @@ details summary{cursor:pointer;font-weight:600}
 
 <section class="card">
   <h2><span class="step">1</span>Common requirements</h2>
-  <p class="desc">What the OpenShift cluster needs, independent of cloud. Sizes are physical cores (1 core = 1 OCI OCPU = 2 vCPU elsewhere).</p>
+  <p class="desc">What the OpenShift cluster needs, independent of cloud. Sizes are physical cores (1 core = 1 OCI OCPU = 2 vCPU elsewhere). Storage performance is a per‑volume target that every cloud is sized to meet.</p>
   <div class="common" id="common"></div>
 </section>
 
 <section class="card">
   <h2><span class="step">2</span>Cloud‑specific choices</h2>
-  <p class="desc">Pick the region and the shape for each node role. Shapes default to the cheapest one that meets the common requirement; any shape that falls short is marked ⚠.</p>
+  <p class="desc">Region, shape per node role, and storage type + performance settings for each cloud. Defaults are the cheapest option that meets Step 1; anything that falls short is marked ⚠. Only regions where the OpenShift offering is available are listed.</p>
   <div class="provs" id="provs"></div>
 </section>
 
@@ -72,24 +74,23 @@ details summary{cursor:pointer;font-weight:600}
 <section class="card scroll"><table id="tbl"></table></section>
 
 <section class="card">
-  <details><summary>Rate card: fees, subscriptions and storage (editable)</summary><div id="rates" style="margin-top:12px"></div></details>
+  <details><summary>Rate card: OpenShift fees and subscriptions (editable)</summary><div id="rates" style="margin-top:12px"></div></details>
 </section>
 <section class="card notes">
-  <h2>Assumptions</h2>
+  <h2>Assumptions and sources</h2>
   <ul>
-    <li><b>OCI</b>: BYOM. OCI compute + Block Volume + your own Red Hat OpenShift subscription (workers only; masters and infra nodes are exempt). OCI prices are identical in every region.</li>
-    <li><b>AWS ROSA</b>: HCP = control plane hosted, $0.25/cluster‑hr, no master EC2. Classic = masters on your EC2, $0.03/cluster‑hr. Workers pay EC2 + ROSA fee per 4 vCPU. Infra pays EC2 only.</li>
-    <li><b>Azure ARO</b>: masters and infra run as your VMs (no OpenShift fee on them); workers pay VM + ARO fee. No bare metal.</li>
-    <li><b>Google OSD (CCS)</b>: masters and infra on your GCE VMs; workers pay VM + OSD fee. No bare metal.</li>
-    <li><b>IBM ROKS</b>: masters managed by IBM at no charge; infra and workers pay VM + OCP license. Bare metal on Classic.</li>
-    <li>Regional prices use approximate uplifts over the cheapest US region. Excludes egress, load balancers, support and reserved/committed discounts.</li>
+    <li><b>OCI</b>: BYOM. OCI compute + Block Volume + your own Red Hat subscription (workers only; masters and infra are exempt). OCI prices are identical in every region. Regions: all OC1 commercial regions (OCI regions documentation).</li>
+    <li><b>AWS ROSA</b>: regions per AWS ROSA endpoints page. HCP isn't offered in us‑west‑1. HCP = hosted control plane at $0.25/cluster‑hr; Classic = masters on your EC2 + $0.03/cluster‑hr. Workers pay EC2 + ROSA fee per 4 vCPU.</li>
+    <li><b>Azure ARO</b>: shapes per ARO support policy (masters must be ≥ 8 vCPU D/E‑series). Regions per Azure products‑by‑region; confirm with <code>az provider show -n Microsoft.RedHatOpenShift</code>. Workers pay VM + ARO fee. No bare metal.</li>
+    <li><b>Google OSD</b>: regions per OpenShift Dedicated service definition. Masters and infra on your GCE VMs; workers pay VM + OSD fee. No bare metal.</li>
+    <li><b>IBM ROKS</b>: VPC regions per IBM Cloud docs. Masters managed at no charge; infra and workers pay VM + OCP license. Bare metal on Classic.</li>
+    <li>Non‑US regional prices use approximate uplifts over the cheapest US region. Storage IOPS/throughput limits are per volume. Excludes egress, load balancers, snapshots, support and reserved/committed discounts.</li>
   </ul>
 </section>
 </div>
 
 <script>
-// ---------- Catalogues (US base region, $/hr, on-demand) ----------
-// vm: [name, vCPU, GB, $/hr]   bm: same
+// ---------- Compute catalogues (US base, $/hr): [name, vCPU, GB, $/hr] ----------
 const CAT = {
   aws: {
     vm: [['m6i.xlarge',4,16,.192],['m6i.2xlarge',8,32,.384],['m6i.4xlarge',16,64,.768],['m6i.8xlarge',32,128,1.536],['m6i.12xlarge',48,192,2.304],['m6i.16xlarge',64,256,3.072],
@@ -99,11 +100,13 @@ const CAT = {
          ['c6i.2xlarge',8,16,.34],['c6i.4xlarge',16,32,.68],['c6i.8xlarge',32,64,1.36]],
     bm: [['c5.metal',96,192,4.08],['m5.metal',96,384,4.608],['m6i.metal',128,512,6.144],['r5.metal',96,768,6.048],['m6a.metal',192,768,8.2944],['r6i.metal',128,1024,8.064]],
   },
-  azure: {
-    vm: [['Standard_D4s_v5',4,16,.192],['Standard_D8s_v5',8,32,.384],['Standard_D16s_v5',16,64,.768],['Standard_D32s_v5',32,128,1.536],['Standard_D48s_v5',48,192,2.304],
-         ['Standard_D8as_v5',8,32,.344],['Standard_D16as_v5',16,64,.688],['Standard_D32as_v5',32,128,1.376],
-         ['Standard_E4s_v5',4,32,.252],['Standard_E8s_v5',8,64,.504],['Standard_E16s_v5',16,128,1.008],['Standard_E32s_v5',32,256,2.016],
-         ['Standard_F8s_v2',8,16,.338],['Standard_F16s_v2',16,32,.677],['Standard_F32s_v2',32,64,1.353]],
+  azure: { // from ARO supported VM sizes; masters restricted to ≥8 vCPU D/E series
+    vm: [['Standard_D4s_v5',4,16,.192],['Standard_D8s_v5',8,32,.384],['Standard_D16s_v5',16,64,.768],['Standard_D32s_v5',32,128,1.536],['Standard_D48s_v5',48,192,2.304],['Standard_D64s_v5',64,256,3.072],
+         ['Standard_D4as_v5',4,16,.172],['Standard_D8as_v5',8,32,.344],['Standard_D16as_v5',16,64,.688],['Standard_D32as_v5',32,128,1.376],
+         ['Standard_D8ds_v5',8,32,.452],['Standard_D16ds_v5',16,64,.904],['Standard_D32ds_v5',32,128,1.808],
+         ['Standard_E4s_v5',4,32,.252],['Standard_E8s_v5',8,64,.504],['Standard_E16s_v5',16,128,1.008],['Standard_E32s_v5',32,256,2.016],['Standard_E64s_v5',64,512,4.032],
+         ['Standard_E8as_v5',8,64,.452],['Standard_E16as_v5',16,128,.904],['Standard_E32as_v5',32,256,1.808],
+         ['Standard_F4s_v2',4,8,.169],['Standard_F8s_v2',8,16,.338],['Standard_F16s_v2',16,32,.677],['Standard_F32s_v2',32,64,1.353]],
     bm: [],
   },
   gcp: {
@@ -120,17 +123,109 @@ const CAT = {
     bm: [['mb4c.20x64 (Classic)',40,64,1.55],['mb4c.20x192 (Classic)',40,192,2.05],['mb4c.32x384 (Classic)',64,384,3.3],['mr3c.28x512 (Classic)',56,512,3.9],['md4c.48x768 (Classic)',96,768,5.6]],
   },
 };
-// OCI: VM flex = $/OCPU-hr + $/GB-hr; BM fixed shape priced at same rates
 const OCI_VM = {'VM.Standard.E5.Flex':[.03,.002,94,1049],'VM.Standard.E4.Flex':[.025,.0015,64,1024],'VM.Standard3.Flex':[.04,.0015,32,512],'VM.Optimized3.Flex':[.054,.0015,18,256]};
 const OCI_BM = [['BM.Standard3.64',64,1024,.04,.0015],['BM.Standard.E4.128',128,2048,.025,.0015],['BM.Standard.E5.192',192,2304,.03,.002],['BM.Optimized3.36',36,512,.054,.0015]];
 
+// ---------- Regions where each OpenShift offering is available: [code, label, price uplift] ----------
 const REGIONS = {
-  oci:   [['us-ashburn-1',1],['us-phoenix-1',1],['uk-london-1',1],['eu-frankfurt-1',1],['ap-mumbai-1',1],['ap-tokyo-1',1],['ap-singapore-1',1],['me-dubai-1',1]],
-  aws:   [['us-east-1 (N. Virginia)',1],['us-west-2 (Oregon)',1],['eu-west-2 (London)',1.12],['eu-central-1 (Frankfurt)',1.15],['ap-south-1 (Mumbai)',1.05],['ap-northeast-1 (Tokyo)',1.26],['ap-southeast-1 (Singapore)',1.2],['me-central-1 (UAE)',1.18]],
-  azure: [['East US',1],['West US 2',1],['UK South',1.13],['Germany West Central',1.15],['Central India',1.07],['Japan East',1.25],['Southeast Asia',1.2],['UAE North',1.18]],
-  gcp:   [['us-central1 (Iowa)',1],['us-east4 (Virginia)',1.12],['europe-west2 (London)',1.2],['europe-west3 (Frankfurt)',1.2],['asia-south1 (Mumbai)',1.12],['asia-northeast1 (Tokyo)',1.26],['asia-southeast1 (Singapore)',1.23],['me-central2 (Dammam)',1.25]],
-  ibm:   [['us-south (Dallas)',1],['us-east (Washington)',1],['eu-gb (London)',1.1],['eu-de (Frankfurt)',1.1],['in-che (Chennai)',1.08],['jp-tok (Tokyo)',1.2],['au-syd (Sydney)',1.15],['ca-tor (Toronto)',1.05]],
+  oci: [ // all OC1 commercial regions; OCI has one global price
+    'us-ashburn-1|Ashburn','us-chicago-1|Chicago','us-phoenix-1|Phoenix','us-sanjose-1|San Jose','ca-montreal-1|Montreal','ca-toronto-1|Toronto',
+    'mx-queretaro-1|Queretaro','mx-monterrey-1|Monterrey','sa-saopaulo-1|São Paulo','sa-vinhedo-1|Vinhedo','sa-santiago-1|Santiago','sa-valparaiso-1|Valparaíso','sa-bogota-1|Bogotá',
+    'uk-london-1|London','uk-cardiff-1|Newport','eu-frankfurt-1|Frankfurt','eu-amsterdam-1|Amsterdam','eu-paris-1|Paris','eu-marseille-1|Marseille','eu-milan-1|Milan','eu-turin-1|Turin',
+    'eu-madrid-1|Madrid','eu-madrid-3|Madrid 3','eu-stockholm-1|Stockholm','eu-zurich-1|Zurich',
+    'me-dubai-1|Dubai','me-abudhabi-1|Abu Dhabi','me-jeddah-1|Jeddah','me-riyadh-1|Riyadh','il-jerusalem-1|Jerusalem','af-johannesburg-1|Johannesburg','af-casablanca-1|Casablanca',
+    'ap-mumbai-1|Mumbai','ap-hyderabad-1|Hyderabad','ap-singapore-1|Singapore','ap-singapore-2|Singapore 2','ap-batam-1|Batam','ap-kulai-2|Kulai',
+    'ap-tokyo-1|Tokyo','ap-osaka-1|Osaka','ap-seoul-1|Seoul','ap-chuncheon-1|Chuncheon','ap-sydney-1|Sydney','ap-melbourne-1|Melbourne',
+  ].map(s=>{const [c,n]=s.split('|'); return [c,`${c} (${n})`,1];}),
+  aws: [ // ROSA per AWS endpoints page; hcp flag
+    ['us-east-1','US East (N. Virginia)',1,1],['us-east-2','US East (Ohio)',1,1],['us-west-1','US West (N. California)',1.17,0],['us-west-2','US West (Oregon)',1,1],
+    ['ca-central-1','Canada (Central)',1.1,1],['sa-east-1','South America (São Paulo)',1.55,1],
+    ['eu-west-1','Europe (Ireland)',1.11,1],['eu-west-2','Europe (London)',1.16,1],['eu-west-3','Europe (Paris)',1.16,1],['eu-central-1','Europe (Frankfurt)',1.19,1],['eu-central-2','Europe (Zurich)',1.3,1],
+    ['eu-south-1','Europe (Milan)',1.17,1],['eu-south-2','Europe (Spain)',1.11,1],['eu-north-1','Europe (Stockholm)',1.06,1],
+    ['me-south-1','Middle East (Bahrain)',1.22,1],['me-central-1','Middle East (UAE)',1.22,1],['af-south-1','Africa (Cape Town)',1.3,1],
+    ['ap-south-1','Asia Pacific (Mumbai)',1.05,1],['ap-south-2','Asia Pacific (Hyderabad)',1.05,1],['ap-southeast-1','Asia Pacific (Singapore)',1.25,1],['ap-southeast-2','Asia Pacific (Sydney)',1.25,1],
+    ['ap-southeast-3','Asia Pacific (Jakarta)',1.25,1],['ap-southeast-4','Asia Pacific (Melbourne)',1.25,1],['ap-east-1','Asia Pacific (Hong Kong)',1.38,1],
+    ['ap-northeast-1','Asia Pacific (Tokyo)',1.29,1],['ap-northeast-2','Asia Pacific (Seoul)',1.23,1],['ap-northeast-3','Asia Pacific (Osaka)',1.29,1],
+    ['us-gov-east-1','AWS GovCloud (US-East)',1.26,1],['us-gov-west-1','AWS GovCloud (US-West)',1.26,1],
+  ].map(([c,n,m,h])=>[c,`${c} (${n})`,m,h]),
+  azure: [ // ARO regions (products-by-region)
+    ['eastus','East US',1],['eastus2','East US 2',1],['centralus','Central US',1.1],['northcentralus','North Central US',1.1],['southcentralus','South Central US',1.1],
+    ['westcentralus','West Central US',1.1],['westus','West US',1.1],['westus2','West US 2',1],['westus3','West US 3',1],
+    ['canadacentral','Canada Central',1.1],['canadaeast','Canada East',1.1],['brazilsouth','Brazil South',1.55],['brazilsoutheast','Brazil Southeast',1.6],['mexicocentral','Mexico Central',1.2],
+    ['northeurope','North Europe',1.08],['westeurope','West Europe',1.15],['uksouth','UK South',1.13],['ukwest','UK West',1.15],['francecentral','France Central',1.15],
+    ['germanywestcentral','Germany West Central',1.15],['switzerlandnorth','Switzerland North',1.3],['norwayeast','Norway East',1.22],['swedencentral','Sweden Central',1.08],
+    ['polandcentral','Poland Central',1.15],['italynorth','Italy North',1.15],['spaincentral','Spain Central',1.12],
+    ['uaenorth','UAE North',1.2],['qatarcentral','Qatar Central',1.2],['israelcentral','Israel Central',1.2],['southafricanorth','South Africa North',1.2],
+    ['centralindia','Central India',1.07],['southindia','South India',1.1],['eastasia','East Asia',1.38],['southeastasia','Southeast Asia',1.2],
+    ['japaneast','Japan East',1.25],['japanwest','Japan West',1.28],['koreacentral','Korea Central',1.2],
+    ['australiaeast','Australia East',1.25],['australiasoutheast','Australia Southeast',1.25],['australiacentral','Australia Central',1.3],
+  ].map(([c,n,m])=>[c,`${n} (${c})`,m]),
+  gcp: [ // OSD service definition
+    ['us-central1','Iowa',1],['us-east1','S. Carolina',1],['us-east4','N. Virginia',1.12],['us-west1','Oregon',1],['us-west2','Los Angeles',1.2],
+    ['northamerica-northeast1','Montréal',1.1],['southamerica-east1','São Paulo',1.59],['southamerica-west1','Santiago',1.43],
+    ['europe-west1','Belgium',1.1],['europe-west2','London',1.2],['europe-west3','Frankfurt',1.2],['europe-west4','Netherlands',1.1],['europe-west6','Zurich',1.33],
+    ['europe-west8','Milan',1.2],['europe-west12','Turin',1.2],['europe-southwest1','Madrid',1.18],['europe-north1','Finland',1.1],
+    ['me-central1','Doha',1.25],['me-central2','Dammam',1.25],
+    ['asia-south1','Mumbai',1.12],['asia-south2','Delhi',1.12],['asia-southeast1','Singapore',1.23],['asia-east1','Taiwan',1.08],['asia-east2','Hong Kong',1.3],
+    ['asia-northeast1','Tokyo',1.26],['asia-northeast2','Osaka',1.26],['australia-southeast1','Sydney',1.33],['australia-southeast2','Melbourne',1.33],
+  ].map(([c,n,m])=>[c,`${c} (${n})`,m]),
+  ibm: [ // ROKS VPC regions
+    ['us-south','Dallas',1],['us-east','Washington DC',1],['ca-tor','Toronto',1.05],['ca-mon','Montreal',1.05],['br-sao','São Paulo',1.3],
+    ['eu-gb','London',1.1],['eu-de','Frankfurt',1.1],['eu-es','Madrid',1.1],
+    ['jp-tok','Tokyo',1.2],['jp-osa','Osaka',1.2],['au-syd','Sydney',1.15],['in-che','Chennai',1.08],['in-mum','Mumbai',1.08],
+  ].map(([c,n,m])=>[c,`${c} (${n})`,m]),
 };
+
+// ---------- Storage models (US $/mo, per volume) ----------
+// Each type -> fn(gb, reqIops, reqMBps) returning {cost, iops, mbps, adjI, adjT, minI, maxI, minT, maxT}
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+function adj(gb, pGB, reqI, reqT, o){ // adjustable IOPS / throughput models
+  const minI=o.baseI, maxI=Math.max(o.baseI,o.maxI(gb)), iops=clamp(reqI,minI,maxI);
+  const minT=o.baseT??0, maxT=Math.max(minT,o.maxT(gb,iops)), mbps=o.pT==null?maxT:clamp(reqT,minT,maxT);
+  const cost = gb*pGB + (o.iCost? o.iCost(iops) : Math.max(0,iops-o.baseI)*o.pI) + (o.pT? Math.max(0,mbps-minT)*o.pT : 0);
+  return {cost,iops,mbps,adjI:true,adjT:o.pT!=null,minI,maxI,minT,maxT};
+}
+const fixed = (cost,iops,mbps)=>({cost,iops:Math.floor(iops),mbps:Math.floor(mbps),adjI:false,adjT:false});
+const AZ_P = [[32,5.28,120,25],[64,10.21,240,50],[128,19.71,500,100],[256,38.02,1100,125],[512,73.22,2300,150],[1024,135.17,5000,200],[2048,259.05,7500,250],[4096,495.57,7500,250],[8192,946.8,16000,500],[16384,1802,18000,750],[32767,3604,20000,900]];
+const STORE = {
+  aws: {
+    'gp3 (General Purpose SSD)': (gb,i,t)=>adj(gb,.08,i,t,{baseI:3000,maxI:g=>Math.min(16000,500*g),pI:.005,baseT:125,maxT:(g,io)=>Math.min(1000,io*.25),pT:.04}),
+    'io2 Block Express (Provisioned IOPS)': (gb,i,t)=>adj(gb,.125,i,t,{baseI:100,maxI:g=>Math.min(256000,1000*g),iCost:io=>Math.min(io,32000)*.065+clamp(io-32000,0,32000)*.0455+Math.max(0,io-64000)*.032,maxT:(g,io)=>Math.min(4000,io*.256)}),
+    'io1 (Provisioned IOPS)': (gb,i,t)=>adj(gb,.125,i,t,{baseI:100,maxI:g=>Math.min(64000,50*g),iCost:io=>io*.065,maxT:(g,io)=>Math.min(1000,io*.256)}),
+    'gp2 (previous gen SSD)': gb=>fixed(gb*.10, clamp(3*gb,100,16000), Math.min(250,gb>=334?250:128)),
+    'st1 (Throughput HDD)': gb=>fixed(gb*.045, 500, Math.min(500,gb*.04)),
+  },
+  azure: {
+    'Premium SSD v2': (gb,i,t)=>adj(gb,.0812,i,t,{baseI:3000,maxI:g=>Math.min(80000,500*g),pI:.00488,baseT:125,maxT:(g,io)=>Math.min(1200,io*.25),pT:.0406}),
+    'Ultra Disk': (gb,i,t)=>adj(gb,.1199,i,t,{baseI:100,maxI:g=>Math.min(400000,300*g),pI:.0497,baseT:1,maxT:(g,io)=>Math.min(10000,io*.256),pT:.0348}),
+    'Premium SSD (P‑tiers)': gb=>{const p=AZ_P.find(x=>x[0]>=gb)||AZ_P.at(-1); const n=Math.ceil(gb/p[0]); return fixed(p[1]*n,p[2],p[3]);},
+    'Standard SSD (E‑tiers)': gb=>fixed(gb*.075, gb<=512?500:gb<=4096?500+(gb/4096)*1500:6000, gb<=512?100:Math.min(750,60+gb*.03)),
+  },
+  gcp: {
+    'Hyperdisk Balanced': (gb,i,t)=>adj(gb,.08,i,t,{baseI:3000,maxI:g=>Math.min(160000,500*g),pI:.005,baseT:140,maxT:(g,io)=>Math.min(2400,io/4),pT:.04}),
+    'Hyperdisk Extreme': (gb,i,t)=>adj(gb,.125,i,t,{baseI:2500,maxI:g=>Math.min(350000,g>=64?350000:0),pI:.035,maxT:(g,io)=>Math.min(5000,io*.256)}),
+    'Hyperdisk Throughput': (gb,i,t)=>adj(gb,.05,i,t,{baseI:0,maxI:()=>0,baseT:Math.max(20,gb*.01),maxT:g=>Math.min(600,g*.09),pT:.025}),
+    'pd‑ssd': gb=>fixed(gb*.17, Math.min(100000,6000+30*gb), Math.min(1200,240+.48*gb)),
+    'pd‑balanced': gb=>fixed(gb*.10, Math.min(80000,3000+6*gb), Math.min(1200,140+.28*gb)),
+    'pd‑standard': gb=>fixed(gb*.04, Math.min(7500,.75*gb), Math.min(1200,.12*gb)),
+  },
+  ibm: {
+    'sdp (defined performance)': (gb,i,t)=>adj(gb,.08,i,t,{baseI:3000,maxI:g=>Math.min(64000,Math.max(3000,g*250)),pI:.02,baseT:1,maxT:(g,io)=>Math.min(1024,io*.256),pT:0}),
+    '10iops‑tier': gb=>fixed(gb*.13, Math.min(48000,10*gb), Math.min(1024,10*gb*.016)),
+    '5iops‑tier': gb=>fixed(gb*.10, Math.min(48000,5*gb), Math.min(1024,5*gb*.016)),
+    'general‑purpose (3 IOPS/GB)': gb=>fixed(gb*.08, Math.min(48000,3*gb), Math.min(1024,3*gb*.016)),
+    'custom': (gb,i,t)=>adj(gb,.1,i,t,{baseI:100,maxI:g=>Math.min(48000,g*(g<40?25:g<100?100:50)),pI:.018,maxT:(g,io)=>Math.min(1024,io*.016)}),
+  },
+};
+// OCI Block Volume: VPU 0..120 in steps of 10 (per-volume performance per OCI docs)
+function ociVol(gb,vpu){
+  const iopsGB = vpu===0?2 : vpu===10?60 : vpu===20?75 : 90+(vpu-30)*1.5;
+  const maxI = vpu===0?3000 : vpu===10?25000 : vpu===20?50000 : 75000+(vpu-30)*2500;
+  const kbGB = vpu===0?240 : vpu===10?480 : vpu===20?600 : 720;
+  const maxT = vpu===0?480 : vpu===10?480 : vpu===20?680 : 880+(vpu-30)*20;
+  return {cost: gb*(.0255+.0017*vpu), iops: Math.floor(Math.min(maxI,iopsGB*gb)), mbps: Math.floor(Math.min(maxT,kbGB*gb/1000))};
+}
+const VPUS = [0,10,20,30,40,50,60,70,80,90,100,110,120];
 
 const P = [
   {k:'oci',name:'OCI – OpenShift (BYOM)',c:'var(--oci)'},
@@ -145,26 +240,26 @@ const ROLES = [
   {id:'worker',name:'Worker nodes',count:3,cores:8,ram:64,bm:true},
 ];
 const R = {
-  oci:{sub2core:2500,subSocketPair:7500,blockGB:.0255,vpu:.0017},
-  aws:{hcp:.25,classic:.03,fee4:.171,gp3:.08,gp3iops:.005,io2:.125,io2iops:.065},
-  azure:{fee4:.35,ssdv2:.081,iops:.005},
-  gcp:{fee4:.171,balanced:.10,ssd:.17,extreme:.125,iops:.065},
-  ibm:{lic4:.35,t3:.08,t5:.10,t10:.13,custom:.20},
+  oci:{sub2core:2500,subSocketPair:7500},
+  aws:{hcp:.25,classic:.03,fee4:.171},
+  azure:{fee4:.35},
+  gcp:{fee4:.171},
+  ibm:{lic4:.35},
 };
 const RL = {
-  oci:{sub2core:'Red Hat OCP $/yr per 2 cores',subSocketPair:'Red Hat OCP $/yr per BM socket‑pair',blockGB:'Block Volume $/GB‑mo',vpu:'$/VPU per GB‑mo'},
-  aws:{hcp:'ROSA HCP $/cluster‑hr',classic:'ROSA Classic $/cluster‑hr',fee4:'ROSA worker $/4 vCPU‑hr',gp3:'EBS gp3 $/GB‑mo',gp3iops:'gp3 $/IOPS‑mo (>3000)',io2:'EBS io2 $/GB‑mo',io2iops:'io2 $/IOPS‑mo'},
-  azure:{fee4:'ARO worker $/4 vCPU‑hr',ssdv2:'Premium SSD v2 $/GB‑mo',iops:'SSD v2 $/IOPS‑mo (>3000)'},
-  gcp:{fee4:'OSD worker $/4 vCPU‑hr',balanced:'pd‑balanced $/GB‑mo',ssd:'pd‑ssd $/GB‑mo',extreme:'Hyperdisk Extreme $/GB‑mo',iops:'Hyperdisk $/IOPS‑mo'},
-  ibm:{lic4:'OCP license $/4 vCPU‑hr',t3:'Block 3 IOPS/GB $/GB‑mo',t5:'Block 5 IOPS/GB $/GB‑mo',t10:'Block 10 IOPS/GB $/GB‑mo',custom:'Block custom $/GB‑mo'},
+  oci:{sub2core:'Red Hat OCP $/yr per 2 cores',subSocketPair:'Red Hat OCP $/yr per BM socket‑pair'},
+  aws:{hcp:'ROSA HCP $/cluster‑hr',classic:'ROSA Classic $/cluster‑hr',fee4:'ROSA worker $/4 vCPU‑hr'},
+  azure:{fee4:'ARO worker $/4 vCPU‑hr'},
+  gcp:{fee4:'OSD worker $/4 vCPU‑hr'},
+  ibm:{lic4:'OCP license $/4 vCPU‑hr'},
 };
 
 const $ = id => document.getElementById(id);
-const q = s => document.querySelector(s);
 const fmt = n => '$' + Math.round(n).toLocaleString();
+const num = n => Math.round(n).toLocaleString();
 const opt = (v,t,sel) => `<option value="${v}"${sel?' selected':''}>${t}</option>`;
 
-// ---------- Step 1: common ----------
+// ---------- Step 1 ----------
 $('common').innerHTML = ROLES.map(r=>`
   <div class="box">
     <h3>${r.name}</h3>
@@ -177,123 +272,153 @@ $('common').innerHTML = ROLES.map(r=>`
     <div class="hint" id="${r.id}-hint"></div>
   </div>`).join('') + `
   <div class="box">
-    <h3>Storage</h3>
+    <h3>Persistent block storage</h3>
     <div class="grid">
-      <label>Persistent block storage (GB)<input type="number" min="0" id="stGB" value="2000"></label>
-      <label>Performance (OCI VPU/GB)<select id="stVPU">${[[0,'0 – Lower cost'],[10,'10 – Balanced'],[20,'20 – Higher perf'],[30,'30 – Ultra high'],[60,'60 – Ultra high'],[90,'90 – Ultra high'],[120,'120 – Ultra high']].map(([v,t])=>opt(v,t,v===10)).join('')}</select></label>
+      <label>Number of volumes<input type="number" min="0" id="stN" value="4"></label>
+      <label>GB per volume<input type="number" min="1" id="stGB" value="500"></label>
+      <label>Target IOPS / volume<input type="number" min="0" id="stI" value="10000"></label>
+      <label>Target MB/s / volume<input type="number" min="0" id="stT" value="200"></label>
+    </div>
+  </div>
+  <div class="box">
+    <h3>Other</h3>
+    <div class="grid">
       <label>Boot disk / node (GB)<input type="number" min="50" id="bootGB" value="120"></label>
       <label>Hours / month<input type="number" min="1" id="hours" value="730"></label>
     </div>
-    <div class="hint" id="vpuHint"></div>
   </div>`;
 
 function common(){
-  return Object.fromEntries(ROLES.map(r=>{
+  const roles = Object.fromEntries(ROLES.map(r=>{
     const type = r.bm ? $(`${r.id}-type`).value : 'vm';
     const cores = Math.max(1,+$(`${r.id}-cores`).value||1), ram = Math.max(1,+$(`${r.id}-ram`).value||1);
     return [r.id,{count:Math.max(0,+$(`${r.id}-count`).value||0),type,cores,ram,vcpu:cores*2}];
   }));
+  roles.st = {n:Math.max(0,+$('stN').value||0), gb:Math.max(1,+$('stGB').value||1), iops:+$('stI').value||0, mbps:+$('stT').value||0};
+  return roles;
 }
 
-// ---------- Step 2: per provider ----------
-function shapeList(k, type){
-  if(k==='oci') return type==='bm' ? OCI_BM.map(s=>({n:s[0],v:s[1]*2,g:s[2]})) : Object.keys(OCI_VM).map(n=>({n,flex:true}));
-  return CAT[k][type].map(s=>({n:s[0],v:s[1],g:s[2],p:s[3]}));
+// ---------- Step 2 helpers ----------
+function shapeList(k, type, role){
+  if(k==='oci') return type==='bm' ? OCI_BM.map(s=>({n:s[0],v:s[1]*2,g:s[2],p:s[1]*s[3]+s[2]*s[4]})) : Object.keys(OCI_VM).map(n=>({n,flex:true}));
+  let l = CAT[k][type].map(s=>({n:s[0],v:s[1],g:s[2],p:s[3]}));
+  if(k==='azure' && role==='master') l = l.filter(s=>s.v>=8 && !s.n.startsWith('Standard_F'));
+  return l;
 }
-function ociBmPrice(s){ return s[1]*s[3] + s[2]*s[4]; }
-function bestFit(k,type,need){
-  if(k==='oci' && type==='vm'){ return Object.keys(OCI_VM).map(n=>[n,need.cores*OCI_VM[n][0]+need.ram*OCI_VM[n][1],need.cores<=OCI_VM[n][2]&&need.ram<=OCI_VM[n][3]]).filter(x=>x[2]).sort((a,b)=>a[1]-b[1])[0]?.[0] || 'VM.Standard.E5.Flex'; }
-  const list = k==='oci' ? OCI_BM.map(s=>({n:s[0],v:s[1]*2,g:s[2],p:ociBmPrice(s)})) : shapeList(k,type);
+function bestFit(k,type,need,role){
+  if(k==='oci' && type==='vm') return Object.keys(OCI_VM).map(n=>[n,need.cores*OCI_VM[n][0]+need.ram*OCI_VM[n][1],need.cores<=OCI_VM[n][2]&&need.ram<=OCI_VM[n][3]]).filter(x=>x[2]).sort((a,b)=>a[1]-b[1])[0]?.[0] || 'VM.Standard.E5.Flex';
+  const list = shapeList(k,type,role);
   const fit = list.filter(s=>s.v>=need.vcpu && s.g>=need.ram).sort((a,b)=>a.p-b.p);
   return (fit[0] || list.slice().sort((a,b)=>b.v-a.v)[0])?.n;
 }
+function bestStore(k, st){
+  if(k==='oci'){ const ok = VPUS.find(v=>{const r=ociVol(st.gb,v); return r.iops>=st.iops && r.mbps>=st.mbps;}); return ok ?? 120; }
+  const c = Object.entries(STORE[k]).map(([n,f])=>[n,f(st.gb,st.iops,st.mbps)]);
+  const ok = c.filter(([,r])=>r.iops>=st.iops && r.mbps>=st.mbps).sort((a,b)=>a[1].cost-b[1].cost);
+  return (ok[0] || c.sort((a,b)=>b[1].iops-a[1].iops)[0])[0];
+}
 
 function renderProviders(){
-  const c = common();
+  const c = common(), keep = {};
+  P.forEach(p=>keep[p.k] = $(`${p.k}-region`)?.value);
+  const model = $('aws-model')?.value || 'hcp';
   $('provs').innerHTML = P.map(p=>{
     const k=p.k;
-    let h = `<div class="prov" style="--c:${p.c}"><h3>${p.name}</h3>
-      <label>Region<select id="${k}-region">${REGIONS[k].map(([n,m],i)=>opt(i,n+(m!==1?`  (+${Math.round((m-1)*100)}%)`:''),i===0)).join('')}</select></label>`;
-    if(k==='aws') h += `<label>ROSA deployment model<select id="aws-model">${opt('hcp','Hosted control plane (HCP)',1)}${opt('classic','Classic (masters in your account)')}</select></label>`;
+    let regs = REGIONS[k]; if(k==='aws' && model==='hcp') regs = regs.filter(r=>r[3]);
+    let h = `<div class="prov" style="--c:${p.c}"><h3>${p.name}</h3>`;
+    if(k==='aws') h += `<label>ROSA deployment model<select id="aws-model">${opt('hcp','Hosted control plane (HCP)',model==='hcp')}${opt('classic','Classic (masters in your account)',model==='classic')}</select></label>`;
+    h += `<label>Region (${regs.length} available)<select id="${k}-region">${regs.map(r=>opt(r[0], r[1]+(r[2]!==1?` · +${Math.round((r[2]-1)*100)}%`:''), r[0]===keep[k])).join('')}</select></label>`;
+    h += `<h4>Compute</h4>`;
     for(const r of ROLES){
       const need = c[r.id];
-      const managedMaster = r.id==='master' && (k==='ibm' || (k==='aws' && ($('aws-model')?.value||'hcp')==='hcp'));
-      if(managedMaster){ h += `<label>${r.name}<div class="fixed">Managed by provider – no shape to pick</div></label>`; continue; }
+      const managed = r.id==='master' && (k==='ibm' || (k==='aws' && model==='hcp'));
+      if(managed){ h += `<label>${r.name}<div class="fixed">Managed by provider – no shape to pick</div></label>`; continue; }
       if(need.type==='bm' && (k==='azure'||k==='gcp')){ h += `<label>${r.name} (bare metal)<div class="fixed na">Not offered on this service</div></label>`; continue; }
-      const list = shapeList(k,need.type), best = bestFit(k,need.type,need);
+      const list = shapeList(k,need.type,r.id), best = bestFit(k,need.type,need,r.id);
       h += `<label>${r.name} – ${need.type==='bm'?'bare‑metal':'VM'} shape<select id="${k}-${r.id}-shape">${list.map(s=>{
         if(s.flex) return opt(s.n, `${s.n} (${need.cores} OCPU / ${need.ram} GB)`, s.n===best);
         const short = s.v<need.vcpu || s.g<need.ram;
         return opt(s.n, `${short?'⚠ ':''}${s.n} – ${s.v} vCPU / ${s.g} GB`, s.n===best);
       }).join('')}</select></label>`;
     }
+    h += `<h4>Storage</h4>`;
+    const bs = bestStore(k, c.st);
+    if(k==='oci'){
+      h += `<label>Block Volume performance (VPU/GB)<select id="oci-st-type">${VPUS.map(v=>opt(v, `${v} VPU – ${v===0?'Lower Cost':v===10?'Balanced':v===20?'Higher Performance':'Ultra High Performance'}`, v===bs)).join('')}</select></label>`;
+    } else {
+      h += `<label>Volume type<select id="${k}-st-type">${Object.keys(STORE[k]).map(n=>opt(n,n,n===bs)).join('')}</select></label>
+            <div class="grid"><label>Provisioned IOPS<input type="number" min="0" id="${k}-st-iops" value="${c.st.iops}"></label>
+            <label>Provisioned MB/s<input type="number" min="0" id="${k}-st-mbps" value="${c.st.mbps}"></label></div>`;
+    }
     return h + `<div class="hint" id="${k}-store"></div></div>`;
   }).join('');
 }
 
 // ---------- Pricing ----------
-const vpuIops = v => v===0?2 : v===10?60 : v===20?75 : Math.min(225, 90+(v-30)*1.5);
-function storage(k, gb, vpu){
-  const iops = gb*vpuIops(vpu), r = R[k];
-  switch(k){
-    case 'oci': return [gb*(r.blockGB + r.vpu*vpu), `Block Volume, ${vpu} VPU`];
-    case 'aws': return vpu<=20 ? [gb*r.gp3 + Math.max(0,Math.min(iops,16000)-3000)*r.gp3iops,'EBS gp3'] : [gb*r.io2 + Math.min(iops,256000)*r.io2iops,'EBS io2'];
-    case 'azure': return [gb*r.ssdv2 + Math.max(0,Math.min(iops,80000)-3000)*r.iops,'Premium SSD v2'];
-    case 'gcp': return vpu<=10 ? [gb*r.balanced,'pd‑balanced'] : vpu<=20 ? [gb*r.ssd,'pd‑ssd'] : [gb*r.extreme + Math.min(iops,350000)*r.iops,'Hyperdisk Extreme'];
-    case 'ibm': return vpu===0 ? [gb*r.t3,'3 IOPS/GB tier'] : vpu<=10 ? [gb*r.t5,'5 IOPS/GB tier'] : vpu<=20 ? [gb*r.t10,'10 IOPS/GB tier'] : [gb*r.custom,'Custom IOPS'];
-  }
+function storeCalc(k, st, reg){
+  if(!st.n) return {cost:0,iops:0,mbps:0,label:'—'};
+  if(k==='oci'){ const v=+$('oci-st-type').value, r=ociVol(st.gb,v); return {...r, cost:r.cost*st.n*reg, label:`${v} VPU`}; }
+  const t = $(`${k}-st-type`).value, iIn=$(`${k}-st-iops`), tIn=$(`${k}-st-mbps`);
+  const r = STORE[k][t](st.gb, +iIn.value||0, +tIn.value||0);
+  iIn.disabled = !r.adjI; tIn.disabled = !r.adjT;
+  if(!r.adjI) iIn.value = r.iops; if(!r.adjT) tIn.value = Math.floor(r.mbps);
+  return {...r, cost:r.cost*st.n*reg, label:t, range: r.adjI ? `IOPS ${num(r.minI)}–${num(r.maxI)}` + (r.adjT?`, MB/s ${num(r.minT)}–${num(r.maxT)}`:'') : 'performance fixed by size'};
+}
+function bootCost(k, gb){ // simple balanced boot disks
+  return {oci:gb*(.0255+.0017*10), aws:gb*.08, azure:gb*.0812, gcp:gb*.10, ibm:gb*.10}[k];
 }
 
 function calc(){
-  const c = common(), H = +$('hours').value||730, gb = +$('stGB').value||0, vpu = +$('stVPU').value, boot = +$('bootGB').value||0;
-  $('vpuHint').textContent = `${vpu} VPU ≈ ${vpuIops(vpu)} IOPS/GB on OCI; other clouds use the nearest tier.`;
+  const c = common(), H = +$('hours').value||730, boot = +$('bootGB').value||0;
   for(const r of ROLES) $(`${r.id}-hint`).textContent = `= ${c[r.id].vcpu} vCPU / ${c[r.id].ram} GB on AWS, Azure, Google, IBM`;
   const out = {};
   for(const {k} of P){
-    const reg = REGIONS[k][+$(`${k}-region`).value][1];
+    const reg = REGIONS[k].find(r=>r[0]===$(`${k}-region`).value)?.[2] ?? 1;
     const o = {master:0,infra:0,worker:0,fee:0,storage:0,na:null,warn:[],nodes:0};
     for(const r of ROLES){
       const need = c[r.id]; if(!need.count) continue;
       const sel = $(`${k}-${r.id}-shape`);
-      if(!sel){
-        if(need.type==='bm' && (k==='azure'||k==='gcp')) o.na = 'No bare metal on this service';
-        continue; // managed master
-      }
+      if(!sel){ if(need.type==='bm' && (k==='azure'||k==='gcp')) o.na = 'No bare metal on this service'; continue; }
       o.nodes += need.count;
       let hr, vcpu;
       if(k==='oci'){
-        if(need.type==='vm'){ const s=OCI_VM[sel.value]; if(need.cores>s[2]||need.ram>s[3]) o.warn.push(`${r.name}: exceeds ${sel.value} max`); hr = need.cores*s[0]+need.ram*s[1]; vcpu=need.vcpu; }
-        else { const s=OCI_BM.find(x=>x[0]===sel.value); hr = ociBmPrice(s); vcpu=s[1]*2; }
+        if(need.type==='vm'){ const s=OCI_VM[sel.value]; if(need.cores>s[2]||need.ram>s[3]) o.warn.push(`${r.name}: exceeds ${sel.value} max`); hr=need.cores*s[0]+need.ram*s[1]; vcpu=need.vcpu; }
+        else { const s=OCI_BM.find(x=>x[0]===sel.value); hr=s[1]*s[3]+s[2]*s[4]; vcpu=s[1]*2; }
         if(r.id==='worker') o.fee += need.type==='bm' ? need.count*R.oci.subSocketPair/12 : need.count*Math.ceil(need.cores/2)*R.oci.sub2core/12;
       } else {
-        const s = CAT[k][need.type].find(x=>x[0]===sel.value); hr = s[3]; vcpu = s[1];
+        const s = CAT[k][need.type].find(x=>x[0]===sel.value); hr=s[3]; vcpu=s[1];
         if(s[1]<need.vcpu||s[2]<need.ram) o.warn.push(`${r.name}: ${s[0]} is below requirement`);
         const units = need.count*Math.ceil(vcpu/4)*H;
-        if(k==='ibm') o.fee += units*R.ibm.lic4;
-        else if(r.id==='worker') o.fee += units*R[k].fee4;
+        if(k==='ibm') o.fee += units*R.ibm.lic4; else if(r.id==='worker') o.fee += units*R[k].fee4;
       }
       o[r.id] = need.count*hr*H*reg;
     }
     if(k==='aws') o.fee += ($('aws-model').value==='hcp'?R.aws.hcp:R.aws.classic)*H;
-    const [sc,tier] = storage(k,gb,vpu), [bc] = storage(k,o.nodes*boot,10);
-    o.storage = (sc+bc)*reg; o.tier = tier;
-    $(`${k}-store`).innerHTML = `Storage: ${tier}` + (o.warn.length?`<br><span class="warn">⚠ ${o.warn.join('<br>⚠ ')}</span>`:'');
-    o.total = o.na ? null : o.master+o.infra+o.worker+o.fee+o.storage;
+    const s = storeCalc(k, c.st, reg);
+    if(c.st.n && (s.iops<c.st.iops || s.mbps<c.st.mbps)) o.warn.push(`Storage below target (${num(s.iops)} IOPS / ${num(s.mbps)} MB/s per volume)`);
+    o.store = s; o.storage = s.cost; o.boot = bootCost(k, o.nodes*boot)*reg;
+    $(`${k}-store`).innerHTML = `Per volume: <b>${num(s.iops)} IOPS · ${num(s.mbps)} MB/s</b>` + (s.range?`<br>Allowed: ${s.range}`:'') + (o.warn.length?`<br><span class="warn">⚠ ${o.warn.join('<br>⚠ ')}</span>`:'');
+    o.total = o.na ? null : o.master+o.infra+o.worker+o.fee+o.storage+o.boot;
     out[k]=o;
   }
-  render(out);
+  render(out, c);
 }
 
 let M = 1;
-function render(out){
+function render(out, c){
   const base = out.oci.total, lbl = M===1?'Monthly':M===12?'Annual':'3‑year';
   const max = Math.max(...P.map(p=>out[p.k].total||0));
   $('bars').innerHTML = P.map(p=>{const t=out[p.k].total; return `<div>${p.name}</div><div>${t==null?`<span class="na">${out[p.k].na}</span>`:`<div class="bar" style="width:${Math.max(10,t/max*100)}%;background:${p.c}">${fmt(t*M)}</div>`}</div>`;}).join('');
-  const rows = [['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee'],['Storage (block + boot)','storage']];
+  const cell = (p,f)=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k][f]*M)}</td>`;
   let h = `<thead><tr><th>${lbl} cost</th>${P.map(p=>`<th><span class="dot" style="background:${p.c}"></span>${p.name}</th>`).join('')}</tr></thead><tbody>`;
-  const regRow = P.map(p=>`<td>${REGIONS[p.k][+$(`${p.k}-region`).value][0]}</td>`).join('');
-  h += `<tr><td>Region</td>${regRow}</tr>`;
-  for(const [n,f] of rows) h += `<tr><td>${n}</td>${P.map(p=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k][f]*M)}</td>`).join('')}</tr>`;
+  h += `<tr><td>Region</td>${P.map(p=>`<td>${$(`${p.k}-region`).value}</td>`).join('')}</tr>`;
+  h += `<tr class="sec"><td>Compute</td>${P.map(()=>'<td></td>').join('')}</tr>`;
+  for(const [n,f] of [['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee']]) h += `<tr><td>${n}</td>${P.map(p=>cell(p,f)).join('')}</tr>`;
+  h += `<tr class="sec"><td>Storage (${c.st.n} × ${num(c.st.gb)} GB)</td>${P.map(()=>'<td></td>').join('')}</tr>`;
+  h += `<tr><td>Volume type</td>${P.map(p=>`<td>${out[p.k].store.label}</td>`).join('')}</tr>`;
+  h += `<tr><td>IOPS / MB/s per volume</td>${P.map(p=>`<td>${num(out[p.k].store.iops)} / ${num(out[p.k].store.mbps)}</td>`).join('')}</tr>`;
+  h += `<tr><td>Block storage</td>${P.map(p=>cell(p,'storage')).join('')}</tr>`;
+  h += `<tr><td>Boot disks</td>${P.map(p=>cell(p,'boot')).join('')}</tr>`;
   h += `<tr class="total"><td>Total</td>${P.map(p=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k].total*M)}</td>`).join('')}</tr>`;
   h += `<tr><td>vs OCI</td>${P.map(p=>{const t=out[p.k].total; if(p.k==='oci') return '<td>baseline</td>'; if(t==null) return '<td class="na">—</td>';
     const d=(t-base)/base*100; return `<td class="${d>0?'good':'bad'}">${d>0?'+':''}${d.toFixed(0)}% (${d>0?'+':'−'}${fmt(Math.abs(t-base)*M)})</td>`;}).join('')}</tr></tbody>`;
@@ -302,9 +427,13 @@ function render(out){
 
 $('rates').innerHTML = Object.keys(R).map(k=>`<h3 style="margin-top:10px">${P.find(p=>p.k===k).name}</h3><div class="grid">${Object.keys(R[k]).map(f=>`<label>${RL[k][f]}<input type="number" step="any" data-rk="${k}" data-rf="${f}" value="${R[k][f]}"></label>`).join('')}</div>`).join('');
 
-// Common changes re-pick default shapes; provider changes just recalc.
-$('common').addEventListener('input', ()=>{ const keep = P.map(p=>[p.k,$(`${p.k}-region`)?.value]); const m=$('aws-model')?.value; renderProviders(); keep.forEach(([k,v])=>v&&($(`${k}-region`).value=v)); if(m) $('aws-model').value=m; calc(); });
-$('provs').addEventListener('change', e=>{ if(e.target.id==='aws-model'){ const keep=P.map(p=>[p.k,$(`${p.k}-region`).value]); const m=e.target.value; renderProviders(); keep.forEach(([k,v])=>$(`${k}-region`).value=v); $('aws-model').value=m; } calc(); });
+$('common').addEventListener('input', ()=>{ renderProviders(); calc(); });
+$('provs').addEventListener('change', e=>{
+  if(e.target.id==='aws-model') renderProviders();
+  if(e.target.id.endsWith('-st-type') && e.target.id!=='oci-st-type'){ const k=e.target.id.split('-')[0], c=common(); $(`${k}-st-iops`).value=c.st.iops; $(`${k}-st-mbps`).value=c.st.mbps; }
+  calc();
+});
+$('provs').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') calc(); });
 $('rates').addEventListener('input', e=>{ R[e.target.dataset.rk][e.target.dataset.rf] = +e.target.value; calc(); });
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); M=+b.dataset.p; calc();});
 renderProviders(); calc();
