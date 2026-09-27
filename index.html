@@ -63,7 +63,7 @@ table.req td.role{font-weight:600;width:140px}
 table.req td:nth-child(2){width:90px}table.req td:nth-child(3){width:180px}
 table.req td:nth-child(4),table.req td:nth-child(5){width:150px}
 table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums}
-.fields{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:820px}
 @media (max-width:900px){.fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:520px){.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .prov label{gap:4px}
@@ -96,6 +96,10 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 .sl-call b{font-size:22px;color:#2E7D32}.sl-call span{font-family:Calibri,system-ui,sans-serif;font-size:14px;color:#333}
 .sl-call.negc{background:#FBEEEE;border-color:#E8C4C1}.sl-call.negc b{color:#B3261E}
 .sl-foot{font-family:Calibri,system-ui,sans-serif;font-size:11px;color:#666;margin-top:12px;line-height:1.4}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--mute);background:transparent;color:var(--mute);font:italic 700 11px Georgia,serif;cursor:pointer;padding:0;margin-left:4px;vertical-align:1px}
+.ib.on,.ib:hover{background:var(--azure);border-color:var(--azure);color:#fff}
+.info{font-size:12px;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--azure);border-radius:6px;padding:8px 10px;color:var(--ink)}
+label>span{overflow:visible}
 </style>
 </head>
 <body>
@@ -172,8 +176,8 @@ const CAT = {
     bm: [['mb4c.20x64 (Classic)',40,64,1.55],['mb4c.20x192 (Classic)',40,192,2.05],['mb4c.32x384 (Classic)',64,384,3.3],['mr3c.28x512 (Classic)',56,512,3.9],['md4c.48x768 (Classic)',96,768,5.6]],
   },
 };
-const OCI_VM = {'VM.Standard.E5.Flex':[.03,.002,94,1049],'VM.Standard.E4.Flex':[.025,.0015,64,1024],'VM.Standard3.Flex':[.04,.0015,32,512],'VM.Optimized3.Flex':[.054,.0015,18,256]};
-const OCI_BM = [['BM.Standard3.64',64,1024,.04,.0015],['BM.Standard.E4.128',128,2048,.025,.0015],['BM.Standard.E5.192',192,2304,.03,.002],['BM.Optimized3.36',36,512,.054,.0015]];
+const OCI_VM = {'VM.Standard.E6.Flex':[.03,.002,126,1454],'VM.Standard.E5.Flex':[.03,.002,126,1049],'VM.Standard.E4.Flex':[.025,.0015,64,1024],'VM.Standard3.Flex':[.04,.0015,32,512],'VM.Optimized3.Flex':[.054,.0015,18,256]};
+const OCI_BM = [['BM.Standard3.64',64,1024,.04,.0015],['BM.Standard.E4.128',128,2048,.025,.0015],['BM.Standard.E5.192',192,2304,.03,.002],['BM.Standard.E6.256',256,3072,.03,.002],['BM.Optimized3.36',36,512,.054,.0015]];
 
 // ---------- Regions where each OpenShift offering is available: [code, label, price uplift] ----------
 const REGIONS = {
@@ -259,7 +263,7 @@ const STORE = {
     'pd‑standard': gb=>fixed(gb*.04, Math.min(7500,.75*gb), Math.min(1200,.12*gb)),
   },
   ibm: {
-    'sdp (defined performance)': (gb,i,t)=>adj(gb,.08,i,t,{baseI:3000,maxI:g=>Math.min(64000,Math.max(3000,g*250)),pI:.02,baseT:1,maxT:(g,io)=>Math.min(1024,io*.256),pT:0}),
+    'sdp (defined performance)': (gb,i,t)=>adj(gb,.08,i,t,{baseI:3000,maxI:g=>Math.min(64000,Math.max(3000,g*250)),pI:.02,maxT:(g,io)=>Math.min(1024,io*.256)}),
     '10iops‑tier': gb=>fixed(gb*.13, Math.min(48000,10*gb), Math.min(1024,10*gb*.016)),
     '5iops‑tier': gb=>fixed(gb*.10, Math.min(48000,5*gb), Math.min(1024,5*gb*.016)),
     'general‑purpose (3 IOPS/GB)': gb=>fixed(gb*.08, Math.min(48000,3*gb), Math.min(1024,3*gb*.016)),
@@ -272,7 +276,7 @@ function ociVol(gb,vpu){
   const maxI = vpu===0?3000 : vpu===10?25000 : vpu===20?50000 : 75000+(vpu-30)*2500;
   const kbGB = vpu===0?240 : vpu===10?480 : vpu===20?600 : 720;
   const maxT = vpu===0?480 : vpu===10?480 : vpu===20?680 : 880+(vpu-30)*20;
-  return {cost: gb*(.0255+.0017*vpu), iops: Math.floor(Math.min(maxI,iopsGB*gb)), mbps: Math.floor(Math.min(maxT,kbGB*gb/1000))};
+  return {cost: gb*(.0255+.0017*vpu), iops: Math.floor(Math.min(maxI,iopsGB*gb)), mbps: Math.floor(Math.min(maxT,kbGB*gb/1024))};
 }
 const VPUS = [0,10,20,30,40,50,60,70,80,90,100,110,120];
 
@@ -323,8 +327,6 @@ $('common').innerHTML = `
   <div class="fields">
     <label><span>Volumes</span><input type="number" min="0" id="stN" value="4"></label>
     <label><span>GB per volume</span><input type="number" min="1" id="stGB" value="500"></label>
-    <label><span>Target IOPS</span><input type="number" min="0" id="stI" value="10000"></label>
-    <label><span>Target MB/s</span><input type="number" min="0" id="stT" value="200"></label>
     <label><span>Boot disk / node (GB)</span><input type="number" min="50" id="bootGB" value="120"></label>
     <label><span>Hours / month</span><input type="number" min="1" id="hours" value="730"></label>
   </div>`;
@@ -335,7 +337,8 @@ function common(){
     const cores = Math.max(1,+$(`${r.id}-cores`).value||1), ram = Math.max(1,+$(`${r.id}-ram`).value||1);
     return [r.id,{count:Math.max(0,+$(`${r.id}-count`).value||0),type,cores,ram,vcpu:cores*2}];
   }));
-  roles.st = {n:Math.max(0,+$('stN').value||0), gb:Math.max(1,+$('stGB').value||1), iops:+$('stI').value||0, mbps:+$('stT').value||0};
+  const gb=Math.max(1,+$('stGB').value||1), vsel=$('oci-st-type'), vpu=(vsel&&!vsel.disabled)?+vsel.value:10, ref=ociVol(gb,vpu);
+  roles.st = {n:Math.max(0,+$('stN').value||0), gb, vpu, iops:ref.iops, mbps:ref.mbps};
   return roles;
 }
 
@@ -354,7 +357,7 @@ function bestFit(list, need){
   return (fit[0] || list.slice().sort((a,b)=>b.v-a.v)[0])?.n;
 }
 function bestStore(k, st){
-  if(k==='oci'){ const ok = VPUS.find(v=>{const r=ociVol(st.gb,v); return r.iops>=st.iops && r.mbps>=st.mbps;}); return ok ?? 120; }
+  if(k==='oci') return st.vpu;
   const c = Object.entries(STORE[k]).map(([n,f])=>[n,f(st.gb,st.iops,st.mbps)]);
   const ok = c.filter(([,r])=>r.iops>=st.iops && r.mbps>=st.mbps).sort((a,b)=>a[1].cost-b[1].cost);
   return (ok[0] || c.sort((a,b)=>b[1].iops-a[1].iops)[0])[0];
@@ -392,15 +395,54 @@ function renderProviders(){
       h += `<label>Volume type<select id="${k}-st-type" disabled><option>— not required (0 volumes) —</option></select></label>`;
       if(k!=='oci') h += `<div class="grid"><label>Provisioned IOPS<input id="${k}-st-iops" disabled></label><label>Provisioned MB/s<input id="${k}-st-mbps" disabled></label></div>`;
     } else if(k==='oci'){
-      h += `<label>Block Volume performance (VPU/GB)<select id="oci-st-type">${VPUS.map(v=>opt(v, `${v} VPU – ${v===0?'Lower Cost':v===10?'Balanced':v===20?'Higher Performance':'Ultra High Performance'}`, v===bs)).join('')}</select></label>`;
+      h += `<label><span>Block Volume performance (VPU/GB) <button type="button" class="ib" data-k="oci" title="How IOPS works">i</button></span><select id="oci-st-type">${VPUS.map(v=>opt(v, `${v} VPU – ${v===0?'Lower Cost':v===10?'Balanced':v===20?'Higher Performance':'Ultra High Performance'}`, v===bs)).join('')}</select></label>`;
     } else {
-      h += `<label>Volume type<select id="${k}-st-type">${Object.keys(STORE[k]).map(n=>opt(n,n,n===bs)).join('')}</select></label>
+      h += `<label><span>Volume type <button type="button" class="ib" data-k="${k}" title="How IOPS works">i</button></span><select id="${k}-st-type">${Object.keys(STORE[k]).map(n=>opt(n,n,n===bs)).join('')}</select></label>
             <div class="grid"><label>Provisioned IOPS<input type="number" min="0" id="${k}-st-iops" value="${c.st.iops}"></label>
             <label>Provisioned MB/s<input type="number" min="0" id="${k}-st-mbps" value="${c.st.mbps}"></label></div>`;
     }
-    return h + `<div class="hint" id="${k}-store"></div></div>`;
+    return h + `<div class="info" id="${k}-info" hidden></div><div class="hint" id="${k}-store"></div></div>`;
   }).join('');
 }
+
+
+// ---------- Storage "i" explanations ----------
+const INFO = {
+  oci:{_:'OCI Block Volume performance is set only by the VPU level. There is no separate "provisioned IOPS": to get more IOPS or throughput you must pick a higher VPU (or a bigger volume, since IOPS scale per GB up to the per-volume cap). 0 VPU = 2 IOPS/GB, 10 VPU = 60 IOPS/GB (max 25,000), 20 VPU = 75 IOPS/GB (max 50,000), 30–120 VPU = 90–225 IOPS/GB (max 75,000–300,000). Performance auto-tune can raise VPU automatically.'},
+  aws:{
+    'gp3 (General Purpose SSD)':'Every gp3 volume includes 3,000 IOPS and 125 MB/s at any size. You CAN raise IOPS (up to 16,000, max 500 IOPS per GB) and throughput (up to 1,000 MB/s) independently of size by typing them in the Provisioned boxes; you pay per extra IOPS and MB/s. Need more than 16,000 IOPS? Change Volume type to io2 Block Express.',
+    'io2 Block Express (Provisioned IOPS)':'No baseline: you provision exactly the IOPS you need (100 up to 256,000, max 1,000 IOPS per GB) in the Provisioned IOPS box and pay per IOPS. Throughput follows IOPS (up to 4,000 MB/s).',
+    'io1 (Provisioned IOPS)':'Previous-generation provisioned IOPS: set IOPS in the box (up to 64,000, max 50 IOPS per GB). Throughput follows IOPS (up to 1,000 MB/s). io2 Block Express is usually better value.',
+    'gp2 (previous gen SSD)':'IOPS are fixed by size: 3 IOPS per GB (min 100, max 16,000); you cannot provision more. To bump it, increase the volume size or change Volume type to gp3.',
+    'st1 (Throughput HDD)':'Hard-disk volume for sequential throughput (logs, big data), not for IOPS. Performance is fixed by size. Use gp3 or io2 for databases/PVs.'},
+  azure:{
+    'Premium SSD v2':'Includes 3,000 IOPS and 125 MB/s at any size. You CAN raise IOPS (up to 80,000, max 500 IOPS per GiB) and throughput (up to 1,200 MB/s) independently of size in the Provisioned boxes; billed per extra IOPS and MB/s. Need more? Change Volume type to Ultra Disk.',
+    'Ultra Disk':'Provision IOPS (up to 400,000, max 300 IOPS per GiB) and throughput (up to 10,000 MB/s) independently in the Provisioned boxes; billed per IOPS and MB/s. Highest-performance Azure disk.',
+    'Premium SSD (P‑tiers)':'Performance is fixed by the size tier (e.g. P20 = 512 GiB → 2,300 IOPS / 150 MB/s; P30 = 1 TiB → 5,000 IOPS / 200 MB/s). You cannot type in IOPS. To bump it, pick a bigger volume (next tier) or change Volume type to Premium SSD v2.',
+    'Standard SSD (E‑tiers)':'Entry-level SSD with low fixed performance by size tier (about 500 IOPS). To get more, change Volume type to Premium SSD v2.'},
+  gcp:{
+    'Hyperdisk Balanced':'Includes 3,000 IOPS and 140 MB/s at any size. You CAN raise IOPS (up to 160,000, max 500 IOPS per GiB) and throughput (up to 2,400 MB/s) independently in the Provisioned boxes; billed per extra IOPS and MB/s. Need more? Change Volume type to Hyperdisk Extreme.',
+    'Hyperdisk Extreme':'Provision IOPS directly (up to 350,000; volume must be ≥ 64 GiB) in the Provisioned IOPS box; throughput follows IOPS. For the most demanding databases.',
+    'Hyperdisk Throughput':'Provision throughput only (for analytics/streaming); IOPS are minimal. Not for databases.',
+    'pd‑ssd':'Performance is fixed by size: about 6,000 + 30 IOPS per GB (max 100,000). You cannot type in IOPS. To bump it, increase size or change Volume type to Hyperdisk Balanced/Extreme.',
+    'pd‑balanced':'Performance is fixed by size: about 3,000 + 6 IOPS per GB (max 80,000). You cannot type in IOPS. To bump it, increase size or change Volume type to pd‑ssd or Hyperdisk.',
+    'pd‑standard':'Hard-disk volume, about 0.75 IOPS per GB. Not suitable for databases.'},
+  ibm:{
+    'sdp (defined performance)':'Includes 3,000 IOPS at any size. You CAN raise IOPS (up to 64,000) in the Provisioned IOPS box independently of size; throughput follows IOPS (up to 1,024 MB/s).',
+    '10iops‑tier':'Fixed 10 IOPS per GB (max 48,000). You cannot type in IOPS. To bump it, increase size or change Volume type to custom or sdp.',
+    '5iops‑tier':'Fixed 5 IOPS per GB (max 48,000). To bump it, increase size, choose 10iops‑tier, or change Volume type to custom/sdp.',
+    'general‑purpose (3 IOPS/GB)':'Fixed 3 IOPS per GB (max 48,000). To bump it, increase size or choose a higher tier (5/10 IOPS) or custom/sdp.',
+    'custom':'Choose any IOPS within the range allowed for the volume size (100–48,000) in the Provisioned IOPS box; throughput follows IOPS.'},
+};
+function infoText(k){
+  const c=common(), gb=c.st.gb;
+  if(k==='oci'){ const v=+$('oci-st-type').value, r=ociVol(gb,v); return `<b>Your ${num(gb)} GB volume at ${v} VPU gets ${num(r.iops)} IOPS / ${num(r.mbps)} MB/s.</b> ${INFO.oci._}`; }
+  const t=$(`${k}-st-type`).value, f=STORE[k][t], lo=f(gb,0,0), hi=f(gb,1e9,1e9);
+  const line = lo.adjI ? `<b>A ${num(gb)} GB ${t} volume gets ${num(lo.iops)} IOPS / ${num(lo.mbps)} MB/s as a minimum/baseline and can be raised to ${num(hi.iops)} IOPS / ${num(hi.mbps)} MB/s.</b>`
+                       : `<b>A ${num(gb)} GB ${t} volume gets ${num(lo.iops)} IOPS / ${num(lo.mbps)} MB/s — fixed, not adjustable.</b>`;
+  return `${line} ${INFO[k][t]||''}`;
+}
+function refreshInfo(){ for(const p of P){ const el=$(`${p.k}-info`); if(el && !el.hidden) el.innerHTML=infoText(p.k); } }
 
 // ---------- Pricing ----------
 function storeCalc(k, st, reg){
@@ -444,7 +486,7 @@ function calc(){
     }
     if(k==='aws') o.fee += ($('aws-model').value==='hcp'?R.aws.hcp:R.aws.classic)*H;
     const s = storeCalc(k, c.st, reg);
-    if(c.st.n && (s.iops<c.st.iops || s.mbps<c.st.mbps)) o.warn.push(`Storage below target (${num(s.iops)} IOPS / ${num(s.mbps)} MB/s per volume)`);
+    if(c.st.n && (s.iops<c.st.iops || s.mbps<c.st.mbps)) o.warn.push(`Storage below OCI's ${c.st.vpu} VPU performance (${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s)`);
     o.store = s; o.storage = s.cost; o.boot = bootCost(k, o.nodes*boot)*reg;
     $(`${k}-store`).innerHTML = `Per volume: <b>${num(s.iops)} IOPS · ${num(s.mbps)} MB/s</b>` + (s.range?`<br>Allowed: ${s.range}`:'') + (o.warn.length?`<br><span class="warn">⚠ ${o.warn.join('<br>⚠ ')}</span>`:'');
     o.total = o.na ? null : o.master+o.infra+o.worker+o.fee+o.storage+o.boot;
@@ -472,7 +514,7 @@ function render(out, c){
   h += `<tr><td>vs OCI</td>${P.map(p=>{const t=out[p.k].total; if(p.k==='oci') return '<td>baseline</td>'; if(t==null) return '<td class="na">—</td>';
     const d=(t-base)/base*100; return `<td class="${d>0?'good':'bad'}">${d>0?'+':''}${d.toFixed(0)}% (${d>0?'+':'−'}${fmt(Math.abs(t-base)*M)})</td>`;}).join('')}</tr></tbody>`;
 
-  LAST = {out, c}; renderSlide();
+  LAST = {out, c}; renderSlide(); refreshInfo();
 }
 
 $('rates').innerHTML = Object.keys(R).map(k=>`<h3 style="margin-top:10px">${P.find(p=>p.k===k).name}</h3><div class="grid">${Object.keys(R[k]).map(f=>`<label>${RL[k][f]}<input type="number" step="any" data-rk="${k}" data-rf="${f}" value="${R[k][f]}"></label>`).join('')}</div>`).join('');
@@ -480,9 +522,11 @@ $('rates').innerHTML = Object.keys(R).map(k=>`<h3 style="margin-top:10px">${P.fi
 $('common').addEventListener('input', ()=>{ renderProviders(); calc(); });
 $('provs').addEventListener('change', e=>{
   if(e.target.id==='aws-model') renderProviders();
+  if(e.target.id==='oci-st-type'){ const c=common(); for(const k of ['aws','azure','gcp','ibm']){ $(`${k}-st-type`).value=bestStore(k,c.st); $(`${k}-st-iops`).value=c.st.iops; $(`${k}-st-mbps`).value=c.st.mbps; } }
   if(e.target.id.endsWith('-st-type') && e.target.id!=='oci-st-type'){ const k=e.target.id.split('-')[0], c=common(); $(`${k}-st-iops`).value=c.st.iops; $(`${k}-st-mbps`).value=c.st.mbps; }
   calc();
 });
+$('provs').addEventListener('click', e=>{ const b=e.target.closest('.ib'); if(!b) return; e.preventDefault(); const el=$(`${b.dataset.k}-info`); el.hidden=!el.hidden; b.classList.toggle('on',!el.hidden); if(!el.hidden) el.innerHTML=infoText(b.dataset.k); });
 $('provs').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') calc(); });
 $('rates').addEventListener('input', e=>{ R[e.target.dataset.rk][e.target.dataset.rf] = +e.target.value; calc(); });
 
@@ -522,7 +566,7 @@ function deckReport(skipCalc){
     row('vCPU / RAM per node', k=>shapeOf(k,r.id).spec);
     row(`Cost / month (${n.count} nodes)`, k=>fmt(out[k][r.id]));
   }
-  sec(`STORAGE  —  ${c.st.n} × ${num(c.st.gb)} GB volumes, target ${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s each`);
+  sec(`STORAGE  —  ${c.st.n} × ${num(c.st.gb)} GB volumes, matched to OCI ${c.st.vpu} VPU (${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s each)`);
   row('Volume type / IOPS / MB/s', k=>c.st.n?`${out[k].store.label.replace(/ \(.*\)$/,'')} · ${num(out[k].store.iops)} / ${num(out[k].store.mbps)}`:'—');
   row('Block + boot / month', k=>fmt(out[k].storage+out[k].boot));
   sec(`ON-DEMAND PRICING  (${H} HRS / MONTH)`);
