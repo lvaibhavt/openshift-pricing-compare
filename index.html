@@ -486,6 +486,12 @@ async function downloadPPT(){
     const typeName={vm:'Virtual machine',bm:'Bare metal',both:'VM + Bare metal'};
     const date=new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
 
+    const spec=(k,rid)=>{ const n=c[rid], sel=$(`${k}-${rid}-shape`);
+      if(!n.count) return '';
+      if(!sel) return 'Managed by provider';
+      if(k==='oci'){ if(OCI_VM[sel.value]) return `${n.cores} OCPU (${n.vcpu} vCPU) / ${n.ram} GB`; const b=OCI_BM.find(x=>x[0]===sel.value); return `${b[1]} OCPU (${b[1]*2} vCPU) / ${num(b[2])} GB`; }
+      const x=CAT[k].vm.find(z=>z[0]===sel.value)||CAT[k].bm.find(z=>z[0]===sel.value); return `${x[1]} vCPU / ${num(x[2])} GB`; };
+    const roleLabel=rid=>{ const n=c[rid], r=ROLES.find(z=>z.id===rid); return n.count ? `${r.name}\n${n.count} × ${n.cores} cores (${n.vcpu} vCPU) / ${n.ram} GB RAM` : `${r.name}\nnot required`; };
     // 1. Title
     let sl=pptx.addSlide();
     sl.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.33,h:.18,fill:{color:RED}});
@@ -526,11 +532,19 @@ async function downloadPPT(){
       const v=(p,f)=>out[p.k].na?'n/a':fmt(out[p.k][f]*mult);
       const lines=[['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee'],['Block storage','storage'],['Boot disks','boot']];
       const t=[[hdr(`${lab} cost`),...P.map(p=>hdr(p.name))]];
-      for(const [n,f] of lines) t.push([{text:n,options:cellO},...P.map(p=>({text:(p.k==='oci'&&f==='fee'&&!$('oci-sub').checked)?'BYOL (own licence)':v(p,f),options:{...cellO,align:'right'}}))]);
+      for(const [n,f] of lines){
+        const isRole = ['master','infra','worker'].includes(f);
+        t.push([{text:isRole?roleLabel(f):n,options:{...cellO,fontSize:isRole?9:10}},...P.map(p=>{
+          if(p.k==='oci'&&f==='fee'&&!$('oci-sub').checked) return {text:'BYOL (own licence)',options:{...cellO,align:'right'}};
+          if(!isRole) return {text:v(p,f),options:{...cellO,align:'right'}};
+          const sp=spec(p.k,f);
+          return {text:[{text:v(p,f),options:{bold:true,breakLine:!!sp}},...(sp?[{text:sp.startsWith('Managed')?sp:sp+' each',options:{fontSize:8,color:MUTE}}]:[])],options:{...cellO,align:'right'}};
+        })]);
+      }
       t.push([{text:'Total',options:{...cellO,bold:true}},...P.map(p=>({text:out[p.k].total==null?'n/a':fmt(out[p.k].total*mult),options:{...cellO,bold:true,align:'right'}}))]);
       const base=out.oci.total;
       t.push([{text:'vs OCI',options:cellO},...P.map(p=>{const x=out[p.k].total; if(p.k==='oci') return {text:'baseline',options:{...cellO,align:'right'}}; const d=(x-base)/base*100; return {text:`${d>0?'+':''}${d.toFixed(0)}%`,options:{...cellO,align:'right',color:d>0?'12805C':'B42318',bold:true}};})]);
-      sl.addTable(t,{x:.5,y:1.4,w:12.3,colW:[2.55,1.95,1.95,1.95,1.95,1.95],border:{type:'solid',pt:.5,color:'E3E6EC'},rowH:.38});
+      sl.addTable(t,{x:.5,y:1.4,w:12.3,colW:[3.05,1.85,1.85,1.85,1.85,1.85],border:{type:'solid',pt:.5,color:'E3E6EC'}});
     }
 
     // 5. Chart
