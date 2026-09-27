@@ -76,6 +76,26 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 .headrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .dl{font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 16px;background:var(--oci);color:#fff;cursor:pointer}
 .dl:hover{filter:brightness(1.1)}.dl:disabled{opacity:.6;cursor:wait}
+
+.slide{background:#fff;border:1px solid var(--line);border-radius:8px;padding:28px 32px;color:#333}
+#slide{min-width:1050px;font-family:Georgia,'Times New Roman',serif}
+.sl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:14px}
+.sl-title{font-size:34px;font-weight:700;color:#1F2A5C;line-height:1.15}
+.sl-sub{font-family:Calibri,system-ui,sans-serif;font-size:15px;color:#5A6378;margin-top:6px}
+.sl-badge{background:#1F2A5C;color:#E8B73A;font-weight:700;font-size:17px;border-radius:999px;padding:10px 28px;white-space:nowrap}
+.sl-t{width:100%;border-collapse:collapse;font-size:13px}
+.sl-t th,.sl-t td{border:1px solid #D5D9E3;padding:4px 8px;text-align:center;white-space:nowrap;color:#333}
+.sl-t th,.sl-t th:first-child{background:#1F2A5C;color:#fff;font-size:14px}.sl-t th.base{color:#E8B73A}
+.sl-t th:first-child,.sl-t td:first-child{text-align:left;font-weight:700;color:#222}
+.sl-t td.base{background:#EAF1FB;color:#1F2A5C;font-weight:700}
+.sl-t tr.sec td{background:#F1F2F7;color:#8A5A00;font-weight:700;font-size:11px;letter-spacing:.06em;text-align:left}
+.sl-t tr.strong td{font-weight:700}
+.sl-t td.pos{color:#2E7D32;font-weight:700}.sl-t td.neg{color:#B3261E;font-weight:700}
+.sl-calls{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:20px;margin-top:16px}
+.sl-call{background:#EEF6EE;border:1px solid #C8E0C9;border-radius:8px;padding:12px 18px;display:flex;flex-direction:column}
+.sl-call b{font-size:22px;color:#2E7D32}.sl-call span{font-family:Calibri,system-ui,sans-serif;font-size:14px;color:#333}
+.sl-call.negc{background:#FBEEEE;border-color:#E8C4C1}.sl-call.negc b{color:#B3261E}
+.sl-foot{font-family:Calibri,system-ui,sans-serif;font-size:11px;color:#666;margin-top:12px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -97,13 +117,13 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 
 <section class="card">
   <div class="headrow"><h2><span class="step">3</span>Pricing</h2><button id="pptBtn" class="dl">⬇ Download PPT</button></div>
-  <div class="tabs" style="margin-top:10px"><button data-p="1" class="on">Monthly</button><button data-p="12">Annual</button><button data-p="36">3‑year</button></div>
-  <div class="bars" id="bars"></div>
+  <p class="desc" style="margin-top:6px">This is exactly what the downloaded slide contains.</p>
+  <div class="slide scroll"><div id="slide"></div></div>
 </section>
-<section class="card scroll"><table id="tbl"></table></section>
+
 
 <section class="card">
-  <details><summary>Rate card: OpenShift fees and subscriptions (editable)</summary><div id="rates" style="margin-top:12px"></div></details>
+  <details><summary>Rate card: managed OpenShift fees (editable)</summary><div id="rates" style="margin-top:12px"></div></details>
 </section>
 <section class="card notes">
   <h2>Assumptions and sources</h2>
@@ -437,7 +457,7 @@ let M = 1, LAST = null;
 function render(out, c){
   const base = out.oci.total, lbl = M===1?'Monthly':M===12?'Annual':'3‑year';
   const max = Math.max(...P.map(p=>out[p.k].total||0));
-  $('bars').innerHTML = P.map(p=>{const t=out[p.k].total; return `<div>${p.name}</div><div>${t==null?`<span class="na">${out[p.k].na}</span>`:`<div class="bar" style="width:${Math.max(10,t/max*100)}%;background:${p.c}">${fmt(t*M)}</div>`}</div>`;}).join('');
+  if(0) $('bars').innerHTML = P.map(p=>{const t=out[p.k].total; return `<div>${p.name}</div><div>${t==null?`<span class="na">${out[p.k].na}</span>`:`<div class="bar" style="width:${Math.max(10,t/max*100)}%;background:${p.c}">${fmt(t*M)}</div>`}</div>`;}).join('');
   const cell = (p,f)=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k][f]*M)}</td>`;
   let h = `<thead><tr><th>${lbl} cost</th>${P.map(p=>`<th><span class="dot" style="background:${p.c}"></span>${p.name}</th>`).join('')}</tr></thead><tbody>`;
   h += `<tr><td>Region</td>${P.map(p=>`<td>${$(`${p.k}-region`).value}</td>`).join('')}</tr>`;
@@ -451,8 +471,8 @@ function render(out, c){
   h += `<tr class="total"><td>Total</td>${P.map(p=>out[p.k].na?'<td class="na">n/a</td>':`<td>${fmt(out[p.k].total*M)}</td>`).join('')}</tr>`;
   h += `<tr><td>vs OCI</td>${P.map(p=>{const t=out[p.k].total; if(p.k==='oci') return '<td>baseline</td>'; if(t==null) return '<td class="na">—</td>';
     const d=(t-base)/base*100; return `<td class="${d>0?'good':'bad'}">${d>0?'+':''}${d.toFixed(0)}% (${d>0?'+':'−'}${fmt(Math.abs(t-base)*M)})</td>`;}).join('')}</tr></tbody>`;
-  $('tbl').innerHTML = h;
-  LAST = {out, c};
+
+  LAST = {out, c}; renderSlide();
 }
 
 $('rates').innerHTML = Object.keys(R).map(k=>`<h3 style="margin-top:10px">${P.find(p=>p.k===k).name}</h3><div class="grid">${Object.keys(R[k]).map(f=>`<label>${RL[k][f]}<input type="number" step="any" data-rk="${k}" data-rf="${f}" value="${R[k][f]}"></label>`).join('')}</div>`).join('');
@@ -465,7 +485,7 @@ $('provs').addEventListener('change', e=>{
 });
 $('provs').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') calc(); });
 $('rates').addEventListener('input', e=>{ R[e.target.dataset.rk][e.target.dataset.rf] = +e.target.value; calc(); });
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); M=+b.dataset.p; calc();});
+
 
 // ---------- PPT export (one comparison slide + sources slide, VMware-compare deck style) ----------
 const DECK_C = {navy:'1F2A5C',gold:'E8B73A',brown:'8A5A00',ink:'222222',body:'333333',muted:'5A6378',line:'D5D9E3',secBg:'F1F2F7',baseBg:'EAF1FB',green:'2E7D32',red:'B3261E',calloutBg:'EEF6EE',calloutLine:'C8E0C9',calloutBgNeg:'FBEEEE',calloutLineNeg:'E8C4C1',white:'FFFFFF'};
@@ -479,8 +499,8 @@ const DECK_SRC = {
 const sup = n => String(n).replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
 const kUsd = n => Math.abs(n)>=1e6 ? '$'+(n/1e6).toFixed(2)+'M' : '$'+Math.round(n/1000)+'K';
 
-function deckReport(){
-  calc(); const {out,c} = LAST, H = +$('hours').value||730;
+function deckReport(skipCalc){
+  if(!skipCalc) calc(); const {out,c} = LAST, H = +$('hours').value||730;
   const notes=[], idx=new Map();
   const mark = t => { if(!idx.has(t)){ notes.push(t); idx.set(t,notes.length); } return sup(idx.get(t)); };
   const model = {oci:'Self-managed (BYOL)',azure:'ARO',gcp:'OSD (CCS)',ibm:'ROKS (VPC)',aws:$('aws-model').value==='hcp'?'ROSA HCP':'ROSA Classic'};
@@ -562,6 +582,20 @@ function deckSources(pptx, rep){
   const b={type:'solid',pt:.75,color:C.line};
   s.addTable(items.map(([k,v])=>[{text:k,options:{bold:true,fontFace:HEAD,fontSize:13,color:C.navy,fill:{color:C.secBg}}},{text:v,options:{fontFace:BODY,fontSize:12,color:C.body}}]),
     {x:M,y:1.5,w:W-2*M,colW:[3.4,W-2*M-3.4],border:b,valign:'middle',margin:[.07,.14,.07,.14],autoPage:false});
+}
+
+
+function renderSlide(){
+  const r=deckReport(true), esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  let h=`<div class="sl-head"><div><div class="sl-title">OpenShift on OCI Pricing Advantage</div><div class="sl-sub">${esc(r.subtitle)}</div></div><div class="sl-badge">${esc(r.badge)}</div></div>
+  <table class="sl-t"><thead><tr><th>Pricing / configuration</th>${r.heads.map((x,i)=>`<th class="${i?'':'base'}">${esc(x)}</th>`).join('')}</tr></thead><tbody>`;
+  for(const row of r.rows){
+    if(row.section){ h+=`<tr class="sec"><td colspan="${r.heads.length+1}">${esc(row.section)}</td></tr>`; continue; }
+    h+=`<tr class="${row.strong?'strong':''}"><td>${esc(row.label)}</td>${row.cells.map((cv,i)=>{const neg=String(cv).startsWith('−'); const cls=[i?'':'base', row.savings&&cv!=='—'?(neg?'neg':'pos'):''].join(' '); return `<td class="${cls}">${esc(cv)}</td>`;}).join('')}</tr>`;
+  }
+  h+=`</tbody></table><div class="sl-calls">${r.callouts.map(co=>`<div class="sl-call ${co.positive?'':'negc'}"><b>${esc(co.title)}</b><span>${esc(co.sub)}</span></div>`).join('')}</div>
+  <div class="sl-foot">${r.notes.map((t,i)=>i<r.notes.length-1?`${sup(i+1)} ${esc(t)}`:esc(t)).join('&nbsp;&nbsp; ')}</div>`;
+  $('slide').innerHTML=h;
 }
 
 async function downloadPPT(){
