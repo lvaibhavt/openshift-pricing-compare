@@ -572,13 +572,13 @@ function deckReport(skipCalc){
   sec(`ON-DEMAND PRICING  (${H} HRS / MONTH)`);
   row('OpenShift fee / licence', k=>k==='oci'?'BYOL'+mark('OpenShift on OCI is BYOL only: customer brings an existing Red Hat subscription; no licence cost is included.'):fmt(out[k].fee));
   row('Cluster / month', k=>fmt(out[k].total), {strong:true});
-  row('3-year cluster total (36 months)', k=>fmt(out[k].total*36), {strong:true});
+  row('1-year cluster total (12 months)', k=>fmt(out[k].total*12), {strong:true});
 
   const base=out.oci.total, callouts=[];
   sec('OCI SAVINGS');
-  row('3-year savings with OCI', k=>{ if(k==='oci') return '—'; const d=out[k].total-base; return `${d<0?'−':''}${fmt(Math.abs(d)*36)} (${Math.round(Math.abs(d)/out[k].total*100)}%)`; }, {savings:true});
+  row('1-year savings with OCI', k=>{ if(k==='oci') return '—'; const d=out[k].total-base; return `${d<0?'−':''}${fmt(Math.abs(d)*12)} (${Math.round(Math.abs(d)/out[k].total*100)}%)`; }, {savings:true});
   for(const p of P){ if(p.k==='oci') continue; const d=out[p.k].total-base, pct=Math.round(Math.abs(d)/out[p.k].total*100), cheaper=d>=0;
-    callouts.push({positive:cheaper,title:`${pct}% ${cheaper?'lower':'higher'} than ${p.name.split(' – ')[1]}`,sub:`${cheaper?'Save':'Costs'} ${kUsd(Math.abs(d)*36)} ${cheaper?'':'more '}over 3 years`}); }
+    callouts.push({positive:cheaper,title:`${pct}% ${cheaper?'lower':'higher'} than ${p.name.split(' – ')[1]}`,sub:`${cheaper?'Save':'Costs'} ${kUsd(Math.abs(d)*12)} ${cheaper?'':'more '}over 1 year`}); }
   notes.push(`Indicative on-demand list prices, USD, ${H} hrs/month. Managed-service fees (ROSA, ARO, OSD, ROKS) include the OpenShift licence; OCI is BYOL. Excludes egress, load balancers, snapshots, support, taxes and committed-use discounts. Estimates, not quotes.`);
   const subtitle=['OpenShift on OCI (BYOL) vs managed OpenShift', `${ROLES.map(r=>c[r.id].count).reduce((a,b)=>a+b,0)}-node cluster`, `${ROLES.reduce((a,r)=>a+c[r.id].count*c[r.id].cores,0)} cores / ${num(ROLES.reduce((a,r)=>a+c[r.id].count*c[r.id].ram,0))} GB RAM`, 'On-demand', `${H} hours/month`].join('  ·  ');
   return {heads:P.map(p=>p.name.replace(' – OpenShift (BYOL)',' – OpenShift')), rows, callouts, notes, subtitle, badge:'On-demand · Monthly', out, c, model, H};
