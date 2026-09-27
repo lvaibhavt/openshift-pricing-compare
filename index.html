@@ -331,6 +331,7 @@ function renderProviders(){
     h += `<h4>Compute</h4>`;
     for(const r of ROLES){
       const need = c[r.id];
+      if(!need.count){ h += `<label>${r.name}<select disabled><option>— not required (count is 0) —</option></select></label>`; continue; }
       const managed = r.id==='master' && (k==='ibm' || (k==='aws' && model==='hcp'));
       if(managed){ h += `<label>${r.name}<div class="fixed">Managed by provider – no shape to pick</div></label>`; continue; }
       if(need.type==='bm' && (k==='azure'||k==='gcp')){ h += `<label>${r.name} (bare metal)<div class="fixed na">Not offered on this service</div></label>`; continue; }
@@ -343,7 +344,10 @@ function renderProviders(){
     }
     h += `<h4>Storage</h4>`;
     const bs = bestStore(k, c.st);
-    if(k==='oci'){
+    if(!c.st.n){
+      h += `<label>Volume type<select id="${k}-st-type" disabled><option>— not required (0 volumes) —</option></select></label>`;
+      if(k!=='oci') h += `<div class="grid"><label>Provisioned IOPS<input id="${k}-st-iops" disabled></label><label>Provisioned MB/s<input id="${k}-st-mbps" disabled></label></div>`;
+    } else if(k==='oci'){
       h += `<label>Block Volume performance (VPU/GB)<select id="oci-st-type">${VPUS.map(v=>opt(v, `${v} VPU – ${v===0?'Lower Cost':v===10?'Balanced':v===20?'Higher Performance':'Ultra High Performance'}`, v===bs)).join('')}</select></label>`;
     } else {
       h += `<label>Volume type<select id="${k}-st-type">${Object.keys(STORE[k]).map(n=>opt(n,n,n===bs)).join('')}</select></label>
