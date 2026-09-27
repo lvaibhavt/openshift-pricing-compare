@@ -100,6 +100,7 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 .ib.on,.ib:hover{background:var(--azure);border-color:var(--azure);color:#fff}
 .info{font-size:12px;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--azure);border-radius:6px;padding:8px 10px;color:var(--ink)}
 label>span{overflow:visible}
+.sl-warn{background:#FFF4E0;border:1.5px solid #E8B73A;border-radius:6px;color:#8A5A00;font:700 14px Calibri,system-ui,sans-serif;padding:8px 14px;margin:0 0 12px}
 </style>
 </head>
 <body>
@@ -532,6 +533,7 @@ $('rates').addEventListener('input', e=>{ R[e.target.dataset.rk][e.target.datase
 
 
 // ---------- PPT export (one comparison slide + sources slide, VMware-compare deck style) ----------
+const DECK_WARN = "INDICATIVE PRICING ONLY — this is not a quote and prices are not guaranteed. Please confirm exact pricing with each vendor before making any decision.";
 const DECK_C = {navy:'1F2A5C',gold:'E8B73A',brown:'8A5A00',ink:'222222',body:'333333',muted:'5A6378',line:'D5D9E3',secBg:'F1F2F7',baseBg:'EAF1FB',green:'2E7D32',red:'B3261E',calloutBg:'EEF6EE',calloutLine:'C8E0C9',calloutBgNeg:'FBEEEE',calloutLineNeg:'E8C4C1',white:'FFFFFF'};
 const DECK_SRC = {
   oci:'OCI price list – oracle.com/cloud/price-list; OpenShift on OCI docs – docs.oracle.com/iaas/Content/openshift-on-oci',
@@ -595,8 +597,10 @@ function deckMain(pptx, rep){
   s.addShape(pptx.ShapeType.roundRect,{x:W-M-3.8,y:.55,w:3.8,h:.6,fill:{color:C.navy},rectRadius:.3,line:{color:C.navy}});
   s.addText(rep.badge,{x:W-M-3.8,y:.55,w:3.8,h:.6,fontFace:HEAD,fontSize:17,bold:true,color:C.gold,align:'center',valign:'middle',margin:0,isTextBox:true});
 
+  s.addShape(pptx.ShapeType.roundRect,{x:M,y:1.64,w:W-2*M,h:.42,rectRadius:.06,fill:{color:'FFF4E0'},line:{color:'E8B73A',width:1.25}});
+  s.addText('⚠  '+DECK_WARN,{x:M+.15,y:1.64,w:W-2*M-.3,h:.42,fontFace:BODY,fontSize:13,bold:true,color:'8A5A00',valign:'middle',margin:0,isTextBox:true});
   const n=rep.heads.length, firstW=3.4, colW=(W-2*M-firstW)/n, b={type:'solid',pt:.75,color:C.line}, border=[b,b,b,b];
-  const tableTop=1.72, tableMaxH=5.95, nSec=rep.rows.filter(x=>x.section).length, nData=rep.rows.length-nSec+1, secH=.24;
+  const tableTop=2.16, tableMaxH=5.5, nSec=rep.rows.filter(x=>x.section).length, nData=rep.rows.length-nSec+1, secH=.24;
   const rowH=Math.min(.36,(tableMaxH-nSec*secH)/nData), fs=rowH>=.33?12:rowH>=.28?11:10;
   const heights=[rowH,...rep.rows.map(x=>x.section?secH:rowH)], tableH=heights.reduce((a,b)=>a+b,0);
   const rows=[[{text:'Pricing / configuration',options:{fill:{color:C.navy},color:C.white,bold:true,fontFace:HEAD,fontSize:fs+1,border}},
@@ -623,18 +627,19 @@ function deckSources(pptx, rep){
   const C=DECK_C, W=16.667, M=.6, HEAD='Georgia', BODY='Calibri';
   const s=pptx.addSlide(); s.background={color:C.white};
   s.addText('Assumptions & sources',{x:M,y:.45,w:11,h:.8,fontFace:HEAD,fontSize:34,bold:true,color:C.navy,margin:0,isTextBox:true});
+  s.addText('⚠  '+DECK_WARN,{x:M,y:1.1,w:W-2*M,h:.35,fontFace:BODY,fontSize:13,bold:true,color:'8A5A00',margin:0,isTextBox:true});
   const items=[['Basis',`On-demand list prices, USD, ${rep.H} hours per month. OpenShift on OCI is BYOL only (customer-owned Red Hat subscription); ROSA, ARO, OSD and ROKS fees include the OpenShift licence. Sizing: 1 physical core = 1 OCI OCPU = 2 vCPU.`],
     ...P.map(p=>[p.name,`${rep.model[p.k]} in ${$(`${p.k}-region`).value}. Source: ${DECK_SRC[p.k]}.`]),
     ['Caveats','Non-US regions use approximate uplifts over US prices. Bare metal is not offered on ARO or OSD (priced on nearest VM if selected). Storage IOPS/throughput are per volume and mapped to each cloud\'s nearest tier. Excludes egress, load balancers, snapshots, support, taxes and committed-use discounts. Estimates, not quotes – validate with each provider\'s calculator.']];
   const b={type:'solid',pt:.75,color:C.line};
   s.addTable(items.map(([k,v])=>[{text:k,options:{bold:true,fontFace:HEAD,fontSize:13,color:C.navy,fill:{color:C.secBg}}},{text:v,options:{fontFace:BODY,fontSize:12,color:C.body}}]),
-    {x:M,y:1.5,w:W-2*M,colW:[3.4,W-2*M-3.4],border:b,valign:'middle',margin:[.07,.14,.07,.14],autoPage:false});
+    {x:M,y:1.65,w:W-2*M,colW:[3.4,W-2*M-3.4],border:b,valign:'middle',margin:[.07,.14,.07,.14],autoPage:false});
 }
 
 
 function renderSlide(){
   const r=deckReport(true), esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  let h=`<div class="sl-head"><div><div class="sl-title">OpenShift on OCI Pricing Advantage</div><div class="sl-sub">${esc(r.subtitle)}</div></div><div class="sl-badge">${esc(r.badge)}</div></div>
+  let h=`<div class="sl-head"><div><div class="sl-title">OpenShift on OCI Pricing Advantage</div><div class="sl-sub">${esc(r.subtitle)}</div></div><div class="sl-badge">${esc(r.badge)}</div></div><div class="sl-warn">⚠ ${esc(DECK_WARN)}</div>
   <table class="sl-t"><thead><tr><th>Pricing / configuration</th>${r.heads.map((x,i)=>`<th class="${i?'':'base'}">${esc(x)}</th>`).join('')}</tr></thead><tbody>`;
   for(const row of r.rows){
     if(row.section){ h+=`<tr class="sec"><td colspan="${r.heads.length+1}">${esc(row.section)}</td></tr>`; continue; }
