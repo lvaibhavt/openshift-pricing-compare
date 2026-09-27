@@ -108,7 +108,7 @@ table.req td.eq{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nu
 <section class="card notes">
   <h2>Assumptions and sources</h2>
   <ul>
-    <li><b>OCI</b>: BYOL. You pay OCI for compute + Block Volume only; the Red Hat OpenShift subscription is your own existing licence, so it is <b>not</b> added by default. Tick “Add Red Hat subscription cost” in the OCI card if you need to buy new subscriptions (charged on workers only; masters and infra are exempt). OCI prices are identical in every region. Regions: all OC1 commercial regions (OCI regions documentation).</li>
+    <li><b>OCI</b>: BYOL. You pay OCI for compute + Block Volume only; OpenShift on OCI is BYOL only: the customer brings their existing Red Hat OpenShift subscription, and Oracle does not sell or bill one. OCI prices are identical in every region. Regions: all OC1 commercial regions (OCI regions documentation).</li>
     <li><b>AWS ROSA</b>: regions per AWS ROSA endpoints page. HCP isn't offered in us‑west‑1. HCP = hosted control plane at $0.25/cluster‑hr; Classic = masters on your EC2 + $0.03/cluster‑hr. Workers pay EC2 + ROSA fee per 4 vCPU.</li>
     <li><b>Azure ARO</b>: shapes per ARO support policy (masters must be ≥ 8 vCPU D/E‑series). Regions per Azure products‑by‑region; confirm with <code>az provider show -n Microsoft.RedHatOpenShift</code>. Workers pay VM + ARO fee. Bare metal isn't supported: if chosen, those nodes are priced on the VM shape you pick and flagged in red.</li>
     <li><b>Google OSD</b>: regions per OpenShift Dedicated service definition. Masters and infra on your GCE VMs; workers pay VM + OSD fee. Bare metal isn't supported: priced on the chosen VM shape and flagged in red.</li>
@@ -269,14 +269,12 @@ const ROLES = [
   {id:'worker',name:'Worker nodes',count:3,cores:8,ram:64,bm:true},
 ];
 const R = {
-  oci:{sub2core:2500,subSocketPair:7500},
   aws:{hcp:.25,classic:.03,fee4:.171},
   azure:{fee4:.35},
   gcp:{fee4:.171},
   ibm:{lic4:.35},
 };
 const RL = {
-  oci:{sub2core:'Red Hat OCP $/yr per 2 cores (only if box ticked)',subSocketPair:'Red Hat OCP $/yr per BM socket‑pair (only if ticked)'},
   aws:{hcp:'ROSA HCP $/cluster‑hr',classic:'ROSA Classic $/cluster‑hr',fee4:'ROSA worker $/4 vCPU‑hr'},
   azure:{fee4:'ARO worker $/4 vCPU‑hr'},
   gcp:{fee4:'OSD worker $/4 vCPU‑hr'},
@@ -344,7 +342,7 @@ function bestStore(k, st){
 
 function renderProviders(){
   const c = common(), keep = {};
-  P.forEach(p=>keep[p.k] = $(`${p.k}-region`)?.value); keep.sub = $('oci-sub')?.checked;
+  P.forEach(p=>keep[p.k] = $(`${p.k}-region`)?.value);
   const model = $('aws-model')?.value || 'hcp';
   $('provs').innerHTML = P.map(p=>{
     const k=p.k;
@@ -353,7 +351,6 @@ function renderProviders(){
     h += k==='aws' ? `<label><span>Deployment model</span><select id="aws-model">${opt('hcp','ROSA – Hosted control plane (HCP)',model==='hcp')}${opt('classic','ROSA – Classic',model==='classic')}</select></label>`
       : `<label><span>Deployment model</span><select disabled><option>${{oci:'Self‑managed OpenShift (BYOL)',azure:'ARO – managed',gcp:'OSD – Customer Cloud Subscription',ibm:'ROKS – VPC'}[k]}</option></select></label>`;
     h += `<label>Region (${regs.length} available)<select id="${k}-region">${regs.map(r=>opt(r[0], r[1]+(r[2]!==1?` · +${Math.round((r[2]-1)*100)}%`:''), r[0]===keep[k])).join('')}</select></label>`;
-    if(k==='oci') h += `<label class="chk"><input type="checkbox" id="oci-sub" ${keep.sub?'checked':''}> Add Red Hat subscription cost (off = BYOL, licence already owned)</label>`;
     h += `<h4>Compute</h4>`;
     for(const r of ROLES){
       const need = c[r.id];
@@ -416,7 +413,6 @@ function calc(){
         const vm = OCI_VM[sel.value];
         if(vm){ if(need.cores>vm[2]||need.ram>vm[3]) o.warn.push(`${r.name}: exceeds ${sel.value} max`); hr=need.cores*vm[0]+need.ram*vm[1]; }
         else { const b=OCI_BM.find(x=>x[0]===sel.value); hr=b[1]*b[3]+b[2]*b[4]; }
-        if(r.id==='worker' && $('oci-sub')?.checked) o.fee += vm ? need.count*Math.ceil(need.cores/2)*R.oci.sub2core/12 : need.count*R.oci.subSocketPair/12;
       } else {
         const s = CAT[k].vm.find(x=>x[0]===sel.value) || CAT[k].bm.find(x=>x[0]===sel.value); hr=s[3]; vcpu=s[1];
         if(need.type==='bm' && !CAT[k].bm.length) o.warn.push(`${r.name}: bare metal not supported – priced on VM`);
@@ -446,7 +442,7 @@ function render(out, c){
   let h = `<thead><tr><th>${lbl} cost</th>${P.map(p=>`<th><span class="dot" style="background:${p.c}"></span>${p.name}</th>`).join('')}</tr></thead><tbody>`;
   h += `<tr><td>Region</td>${P.map(p=>`<td>${$(`${p.k}-region`).value}</td>`).join('')}</tr>`;
   h += `<tr class="sec"><td>Compute</td>${P.map(()=>'<td></td>').join('')}</tr>`;
-  for(const [n,f] of [['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee']]) h += `<tr><td>${n}</td>${P.map(p=>(p.k==='oci'&&f==='fee'&&!$('oci-sub').checked)?'<td class="na">BYOL – own licence</td>':cell(p,f)).join('')}</tr>`;
+  for(const [n,f] of [['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee']]) h += `<tr><td>${n}</td>${P.map(p=>(p.k==='oci'&&f==='fee')?'<td class="na">BYOL – own licence</td>':cell(p,f)).join('')}</tr>`;
   h += `<tr class="sec"><td>Storage (${c.st.n} × ${num(c.st.gb)} GB)</td>${P.map(()=>'<td></td>').join('')}</tr>`;
   h += `<tr><td>Volume type</td>${P.map(p=>`<td>${out[p.k].store.label}</td>`).join('')}</tr>`;
   h += `<tr><td>IOPS / MB/s per volume</td>${P.map(p=>`<td>${num(out[p.k].store.iops)} / ${num(out[p.k].store.mbps)}</td>`).join('')}</tr>`;
@@ -471,95 +467,115 @@ $('provs').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') calc();
 $('rates').addEventListener('input', e=>{ R[e.target.dataset.rk][e.target.dataset.rf] = +e.target.value; calc(); });
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); M=+b.dataset.p; calc();});
 
-// ---------- PPT export ----------
+// ---------- PPT export (one comparison slide + sources slide, VMware-compare deck style) ----------
+const DECK_C = {navy:'1F2A5C',gold:'E8B73A',brown:'8A5A00',ink:'222222',body:'333333',muted:'5A6378',line:'D5D9E3',secBg:'F1F2F7',baseBg:'EAF1FB',green:'2E7D32',red:'B3261E',calloutBg:'EEF6EE',calloutLine:'C8E0C9',calloutBgNeg:'FBEEEE',calloutLineNeg:'E8C4C1',white:'FFFFFF'};
+const DECK_SRC = {
+  oci:'OCI price list – oracle.com/cloud/price-list; OpenShift on OCI docs – docs.oracle.com/iaas/Content/openshift-on-oci',
+  aws:'ROSA pricing – aws.amazon.com/rosa/pricing; EC2 on-demand – aws.amazon.com/ec2/pricing/on-demand',
+  azure:'ARO pricing – azure.microsoft.com/pricing/details/openshift; supported sizes – learn.microsoft.com/azure/openshift/support-policies-v4',
+  gcp:'OpenShift Dedicated – redhat.com/en/technologies/cloud-computing/openshift/dedicated; GCE pricing – cloud.google.com/compute/vm-instance-pricing',
+  ibm:'Red Hat OpenShift on IBM Cloud – cloud.ibm.com/docs/openshift?topic=openshift-costs; VPC pricing – cloud.ibm.com/vpc-ext/provision/vs',
+};
+const sup = n => String(n).replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
+const kUsd = n => Math.abs(n)>=1e6 ? '$'+(n/1e6).toFixed(2)+'M' : '$'+Math.round(n/1000)+'K';
+
+function deckReport(){
+  calc(); const {out,c} = LAST, H = +$('hours').value||730;
+  const notes=[], idx=new Map();
+  const mark = t => { if(!idx.has(t)){ notes.push(t); idx.set(t,notes.length); } return sup(idx.get(t)); };
+  const model = {oci:'Self-managed (BYOL)',azure:'ARO',gcp:'OSD (CCS)',ibm:'ROKS (VPC)',aws:$('aws-model').value==='hcp'?'ROSA HCP':'ROSA Classic'};
+  const rows=[], sec=t=>rows.push({section:t}), row=(label,fn,o={})=>rows.push({label,cells:P.map(p=>fn(p.k)),...o});
+  const shapeOf=(k,rid)=>{ const sel=$(`${k}-${rid}-shape`); if(!c[rid].count) return null; if(!sel) return {name:'Managed by provider'+mark('ROSA HCP and IBM ROKS run the control plane for you; no master VMs are billed.'),spec:'—'};
+    if(k==='oci'){ const vm=OCI_VM[sel.value]; if(vm) return {name:sel.value,spec:`${c[rid].cores} OCPU (${c[rid].vcpu} vCPU) / ${c[rid].ram} GB`}; const b=OCI_BM.find(x=>x[0]===sel.value); return {name:b[0],spec:`${b[1]} OCPU (${b[1]*2} vCPU) / ${num(b[2])} GB`}; }
+    const x=CAT[k].vm.find(z=>z[0]===sel.value)||CAT[k].bm.find(z=>z[0]===sel.value);
+    let name=x[0]; if(c[rid].type==='bm' && !CAT[k].bm.length) name+=mark(`${k==='azure'?'ARO':'OSD'} does not offer bare-metal nodes; priced on the closest VM shape.`);
+    return {name,spec:`${x[1]} vCPU / ${num(x[2])} GB`}; };
+
+  sec('CONFIGURATION');
+  row('Region', k=>$(`${k}-region`).value);
+  row('Deployment model', k=>model[k]);
+  const typeName={vm:'VM',bm:'bare metal',both:'VM / bare metal'};
+  for(const r of ROLES){
+    const n=c[r.id]; if(!n.count) continue;
+    sec(`${r.name.toUpperCase()}  —  ${n.count} × ${n.cores} cores (${n.vcpu} vCPU) / ${n.ram} GB RAM, ${typeName[n.type]}`);
+    row('Shape', k=>shapeOf(k,r.id).name);
+    row('vCPU / RAM per node', k=>shapeOf(k,r.id).spec);
+    row(`Cost / month (${n.count} nodes)`, k=>fmt(out[k][r.id]));
+  }
+  sec(`STORAGE  —  ${c.st.n} × ${num(c.st.gb)} GB volumes, target ${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s each`);
+  row('Volume type / IOPS / MB/s', k=>c.st.n?`${out[k].store.label.replace(/ \(.*\)$/,'')} · ${num(out[k].store.iops)} / ${num(out[k].store.mbps)}`:'—');
+  row('Block + boot / month', k=>fmt(out[k].storage+out[k].boot));
+  sec(`ON-DEMAND PRICING  (${H} HRS / MONTH)`);
+  row('OpenShift fee / licence', k=>k==='oci'?'BYOL'+mark('OpenShift on OCI is BYOL only: customer brings an existing Red Hat subscription; no licence cost is included.'):fmt(out[k].fee));
+  row('Cluster / month', k=>fmt(out[k].total), {strong:true});
+  row('3-year cluster total (36 months)', k=>fmt(out[k].total*36), {strong:true});
+
+  const base=out.oci.total, callouts=[];
+  sec('OCI SAVINGS');
+  row('3-year savings with OCI', k=>{ if(k==='oci') return '—'; const d=out[k].total-base; return `${d<0?'−':''}${fmt(Math.abs(d)*36)} (${Math.round(Math.abs(d)/out[k].total*100)}%)`; }, {savings:true});
+  for(const p of P){ if(p.k==='oci') continue; const d=out[p.k].total-base, pct=Math.round(Math.abs(d)/out[p.k].total*100), cheaper=d>=0;
+    callouts.push({positive:cheaper,title:`${pct}% ${cheaper?'lower':'higher'} than ${p.name.split(' – ')[1]}`,sub:`${cheaper?'Save':'Costs'} ${kUsd(Math.abs(d)*36)} ${cheaper?'':'more '}over 3 years`}); }
+  notes.push(`Indicative on-demand list prices, USD, ${H} hrs/month. Managed-service fees (ROSA, ARO, OSD, ROKS) include the OpenShift licence; OCI is BYOL. Excludes egress, load balancers, snapshots, support, taxes and committed-use discounts. Estimates, not quotes.`);
+  const subtitle=['OpenShift on OCI (BYOL) vs managed OpenShift', `${ROLES.map(r=>c[r.id].count).reduce((a,b)=>a+b,0)}-node cluster`, `${ROLES.reduce((a,r)=>a+c[r.id].count*c[r.id].cores,0)} cores / ${num(ROLES.reduce((a,r)=>a+c[r.id].count*c[r.id].ram,0))} GB RAM`, 'On-demand', `${H} hours/month`].join('  ·  ');
+  return {heads:P.map(p=>p.name.replace(' – OpenShift (BYOL)',' – OpenShift')), rows, callouts, notes, subtitle, badge:'On-demand · Monthly', out, c, model, H};
+}
+
+function deckMain(pptx, rep){
+  const C=DECK_C, W=16.667, Hh=9.375, M=.6, HEAD='Georgia', BODY='Calibri';
+  const s=pptx.addSlide(); s.background={color:C.white};
+  s.addText('OpenShift on OCI Pricing Advantage',{x:M,y:.45,w:11.5,h:.8,fontFace:HEAD,fontSize:36,bold:true,color:C.navy,margin:0,isTextBox:true});
+  s.addText(rep.subtitle,{x:M,y:1.22,w:W-2*M,h:.35,fontFace:BODY,fontSize:14,color:C.muted,margin:0,isTextBox:true});
+  s.addShape(pptx.ShapeType.roundRect,{x:W-M-3.8,y:.55,w:3.8,h:.6,fill:{color:C.navy},rectRadius:.3,line:{color:C.navy}});
+  s.addText(rep.badge,{x:W-M-3.8,y:.55,w:3.8,h:.6,fontFace:HEAD,fontSize:17,bold:true,color:C.gold,align:'center',valign:'middle',margin:0,isTextBox:true});
+
+  const n=rep.heads.length, firstW=3.4, colW=(W-2*M-firstW)/n, b={type:'solid',pt:.75,color:C.line}, border=[b,b,b,b];
+  const tableTop=1.72, tableMaxH=5.95, nSec=rep.rows.filter(x=>x.section).length, nData=rep.rows.length-nSec+1, secH=.24;
+  const rowH=Math.min(.36,(tableMaxH-nSec*secH)/nData), fs=rowH>=.33?12:rowH>=.28?11:10;
+  const heights=[rowH,...rep.rows.map(x=>x.section?secH:rowH)], tableH=heights.reduce((a,b)=>a+b,0);
+  const rows=[[{text:'Pricing / configuration',options:{fill:{color:C.navy},color:C.white,bold:true,fontFace:HEAD,fontSize:fs+1,border}},
+    ...rep.heads.map((h,i)=>({text:h,options:{fill:{color:C.navy},color:i===0?C.gold:C.white,bold:true,fontFace:HEAD,fontSize:fs+1,align:'center',border}}))]];
+  for(const row of rep.rows){
+    if(row.section){ rows.push([{text:row.section,options:{colspan:n+1,fill:{color:C.secBg},color:C.brown,bold:true,fontFace:HEAD,fontSize:fs-2,charSpacing:1,border}}]); continue; }
+    rows.push([{text:row.label,options:{bold:true,color:C.ink,fontFace:HEAD,fontSize:fs,border}},
+      ...row.cells.map((cv,i)=>{ const neg=String(cv).startsWith('−'); return {text:String(cv),options:{align:'center',fontFace:HEAD,fontSize:fs,border,
+        bold:i===0||row.savings||row.strong, color:row.savings&&cv!=='—'?(neg?C.red:C.green):i===0?C.navy:C.body, fill:{color:i===0?C.baseBg:C.white}}}; })]);
+  }
+  s.addTable(rows,{x:M,y:tableTop,w:W-2*M,colW:[firstW,...Array(n).fill(colW)],rowH:heights,valign:'middle',margin:[.02,.08,.02,.08],autoPage:false});
+
+  const cy=tableTop+tableH+.16;
+  if(rep.callouts.length){ const gap=.3, cw=(W-2*M-gap*(rep.callouts.length-1))/rep.callouts.length;
+    rep.callouts.forEach((co,i)=>{ const x=M+i*(cw+gap);
+      s.addShape(pptx.ShapeType.roundRect,{x,y:cy,w:cw,h:.9,rectRadius:.08,fill:{color:co.positive?C.calloutBg:C.calloutBgNeg},line:{color:co.positive?C.calloutLine:C.calloutLineNeg,width:1}});
+      s.addText([{text:co.title,options:{fontFace:HEAD,fontSize:18,bold:true,color:co.positive?C.green:C.red,breakLine:true}},{text:co.sub,options:{fontFace:BODY,fontSize:13,color:C.body}}],
+        {x:x+.2,y:cy+.05,w:cw-.3,h:.8,valign:'middle',margin:0,isTextBox:true}); }); }
+  const fy=cy+1.02, foot=rep.notes.map((t,i)=>i<rep.notes.length-1?`${sup(i+1)} ${t}`:t).join('   ');
+  s.addText(foot,{x:M,y:fy,w:W-2*M,h:Math.max(.3,Hh-fy-.12),fontFace:BODY,fontSize:8.5,color:'666666',valign:'top',margin:0,isTextBox:true,fit:'shrink'});
+}
+
+function deckSources(pptx, rep){
+  const C=DECK_C, W=16.667, M=.6, HEAD='Georgia', BODY='Calibri';
+  const s=pptx.addSlide(); s.background={color:C.white};
+  s.addText('Assumptions & sources',{x:M,y:.45,w:11,h:.8,fontFace:HEAD,fontSize:34,bold:true,color:C.navy,margin:0,isTextBox:true});
+  const items=[['Basis',`On-demand list prices, USD, ${rep.H} hours per month. OpenShift on OCI is BYOL only (customer-owned Red Hat subscription); ROSA, ARO, OSD and ROKS fees include the OpenShift licence. Sizing: 1 physical core = 1 OCI OCPU = 2 vCPU.`],
+    ...P.map(p=>[p.name,`${rep.model[p.k]} in ${$(`${p.k}-region`).value}. Source: ${DECK_SRC[p.k]}.`]),
+    ['Caveats','Non-US regions use approximate uplifts over US prices. Bare metal is not offered on ARO or OSD (priced on nearest VM if selected). Storage IOPS/throughput are per volume and mapped to each cloud\'s nearest tier. Excludes egress, load balancers, snapshots, support, taxes and committed-use discounts. Estimates, not quotes – validate with each provider\'s calculator.']];
+  const b={type:'solid',pt:.75,color:C.line};
+  s.addTable(items.map(([k,v])=>[{text:k,options:{bold:true,fontFace:HEAD,fontSize:13,color:C.navy,fill:{color:C.secBg}}},{text:v,options:{fontFace:BODY,fontSize:12,color:C.body}}]),
+    {x:M,y:1.5,w:W-2*M,colW:[3.4,W-2*M-3.4],border:b,valign:'middle',margin:[.07,.14,.07,.14],autoPage:false});
+}
+
 async function downloadPPT(){
   const btn=$('pptBtn'); btn.disabled=true; btn.textContent='Building…';
   try{
-    if(!window.PptxGenJS){ await new Promise((ok,err)=>{const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'; sc.onload=ok; sc.onerror=err; document.head.appendChild(sc);}); }
-    calc(); const {out,c}=LAST, H=+$('hours').value||730;
-    const pptx=new PptxGenJS(); pptx.layout='LAYOUT_WIDE';
-    const INK='1C2230', MUTE='667085', RED='C74634';
-    const COL={oci:'C74634',aws:'E68A00',azure:'0078D4',gcp:'34A853',ibm:'8A3FFC'};
-    const hdr=(t)=>({text:t,options:{bold:true,color:'FFFFFF',fill:{color:INK},fontSize:11}});
-    const cellO={fontSize:10,color:INK,valign:'middle'};
-    const title=(sl,t,sub)=>{ sl.addText(t,{x:.5,y:.3,w:12.3,h:.6,fontSize:24,bold:true,color:INK}); if(sub) sl.addText(sub,{x:.5,y:.85,w:12.3,h:.4,fontSize:12,color:MUTE}); };
-    const typeName={vm:'Virtual machine',bm:'Bare metal',both:'VM + Bare metal'};
-    const date=new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
-
-    const spec=(k,rid)=>{ const n=c[rid], sel=$(`${k}-${rid}-shape`);
-      if(!n.count) return '';
-      if(!sel) return 'Managed by provider';
-      if(k==='oci'){ if(OCI_VM[sel.value]) return `${n.cores} OCPU (${n.vcpu} vCPU) / ${n.ram} GB`; const b=OCI_BM.find(x=>x[0]===sel.value); return `${b[1]} OCPU (${b[1]*2} vCPU) / ${num(b[2])} GB`; }
-      const x=CAT[k].vm.find(z=>z[0]===sel.value)||CAT[k].bm.find(z=>z[0]===sel.value); return `${x[1]} vCPU / ${num(x[2])} GB`; };
-    const roleLabel=rid=>{ const n=c[rid], r=ROLES.find(z=>z.id===rid); return n.count ? `${r.name}\n${n.count} × ${n.cores} cores (${n.vcpu} vCPU) / ${n.ram} GB RAM` : `${r.name}\nnot required`; };
-    // 1. Title
-    let sl=pptx.addSlide();
-    sl.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.33,h:.18,fill:{color:RED}});
-    sl.addText('OpenShift Pricing Comparison',{x:.6,y:2.2,w:12,h:1,fontSize:36,bold:true,color:INK});
-    sl.addText('OCI (BYOL) vs AWS ROSA · Azure ARO · Google OSD · IBM ROKS',{x:.6,y:3.2,w:12,h:.5,fontSize:18,color:MUTE});
-    sl.addText(`${date}  ·  Indicative on‑demand list prices, ${H} hrs/month`,{x:.6,y:3.8,w:12,h:.4,fontSize:12,color:MUTE});
-
-    // 2. Requirements: CPU / RAM
-    sl=pptx.addSlide(); title(sl,'Cluster requirements','Physical cores: 1 core = 1 OCI OCPU = 2 vCPU on other clouds');
-    const rows=[[hdr('Node role'),hdr('Count'),hdr('Machine type'),hdr('Cores / node'),hdr('vCPU / node'),hdr('RAM / node'),hdr('Total cores'),hdr('Total vCPU'),hdr('Total RAM')]];
-    let tc=0,tv=0,tr=0;
-    for(const r of ROLES){ const n=c[r.id]; tc+=n.count*n.cores; tv+=n.count*n.vcpu; tr+=n.count*n.ram;
-      rows.push([r.name,String(n.count),typeName[n.type],String(n.cores),String(n.vcpu),n.ram+' GB',String(n.count*n.cores),String(n.count*n.vcpu),num(n.count*n.ram)+' GB'].map(t=>({text:t,options:cellO}))); }
-    rows.push(['Cluster total','','','','','',String(tc),String(tv),num(tr)+' GB'].map(t=>({text:t,options:{...cellO,bold:true}})));
-    sl.addTable(rows,{x:.5,y:1.5,w:12.3,colW:[1.8,.8,1.7,1.2,1.2,1.2,1.4,1.4,1.6],border:{type:'solid',pt:.5,color:'E3E6EC'},rowH:.4});
-    sl.addText(`Persistent storage: ${c.st.n} × ${num(c.st.gb)} GB volumes, target ${num(c.st.iops)} IOPS / ${num(c.st.mbps)} MB/s per volume  ·  Boot disk ${$('bootGB').value} GB per node`,{x:.5,y:4.2,w:12.3,h:.4,fontSize:12,color:MUTE});
-
-    // 3. Shapes chosen per cloud with CPU / RAM
-    sl=pptx.addSlide(); title(sl,'Shapes selected per cloud','What each node actually gets (vCPU / RAM) on each provider');
-    const shapeRows=[[hdr(''),...P.map(p=>hdr(p.name))]];
-    shapeRows.push([{text:'Region',options:{...cellO,bold:true}},...P.map(p=>({text:$(`${p.k}-region`).value,options:cellO}))]);
-    shapeRows.push([{text:'Deployment',options:{...cellO,bold:true}},...P.map(p=>({text:p.k==='aws'?($('aws-model').value==='hcp'?'ROSA HCP':'ROSA Classic'):{oci:'Self‑managed (BYOL)',azure:'ARO',gcp:'OSD (CCS)',ibm:'ROKS (VPC)'}[p.k],options:cellO}))]);
-    for(const r of ROLES){
-      shapeRows.push([{text:`${r.name} (×${c[r.id].count})`,options:{...cellO,bold:true}},...P.map(p=>{
-        const sel=$(`${p.k}-${r.id}-shape`); let t;
-        if(!c[r.id].count) t='—';
-        else if(!sel) t='Managed by provider';
-        else { t=sel.options[sel.selectedIndex].text.replace('⚠ ','').replace(' – ','\n'); if(p.k==='oci' && OCI_VM[sel.value]) t=`${sel.value}\n${c[r.id].cores} OCPU (${c[r.id].vcpu} vCPU) / ${c[r.id].ram} GB`; else if(p.k==='oci'){ const b=OCI_BM.find(x=>x[0]===sel.value); t=`${b[0]}\n${b[1]} OCPU (${b[1]*2} vCPU) / ${num(b[2])} GB`; } }
-        return {text:t,options:{...cellO,fontSize:9}};
-      })]);
-    }
-    shapeRows.push([{text:'Storage (per volume)',options:{...cellO,bold:true}},...P.map(p=>{const st=out[p.k].store; return {text:`${st.label}\n${num(st.iops)} IOPS / ${num(st.mbps)} MB/s`,options:{...cellO,fontSize:9}};})]);
-    sl.addTable(shapeRows,{x:.5,y:1.4,w:12.3,colW:[2.05,2.05,2.05,2.05,2.05,2.05],border:{type:'solid',pt:.5,color:'E3E6EC'}});
-
-    // 4. Cost breakdown
-    for(const [mult,lab] of [[1,'Monthly'],[12,'Annual']]){
-      sl=pptx.addSlide(); title(sl,`${lab} cost comparison`,'USD, on‑demand list prices; OCI excludes Red Hat licence unless noted (BYOL)');
-      const v=(p,f)=>out[p.k].na?'n/a':fmt(out[p.k][f]*mult);
-      const lines=[['Master nodes','master'],['Infra nodes','infra'],['Worker nodes','worker'],['OpenShift fee / subscription','fee'],['Block storage','storage'],['Boot disks','boot']];
-      const t=[[hdr(`${lab} cost`),...P.map(p=>hdr(p.name))]];
-      for(const [n,f] of lines){
-        const isRole = ['master','infra','worker'].includes(f);
-        t.push([{text:isRole?roleLabel(f):n,options:{...cellO,fontSize:isRole?9:10}},...P.map(p=>{
-          if(p.k==='oci'&&f==='fee'&&!$('oci-sub').checked) return {text:'BYOL (own licence)',options:{...cellO,align:'right'}};
-          if(!isRole) return {text:v(p,f),options:{...cellO,align:'right'}};
-          const sp=spec(p.k,f);
-          return {text:[{text:v(p,f),options:{bold:true,breakLine:!!sp}},...(sp?[{text:sp.startsWith('Managed')?sp:sp+' each',options:{fontSize:8,color:MUTE}}]:[])],options:{...cellO,align:'right'}};
-        })]);
-      }
-      t.push([{text:'Total',options:{...cellO,bold:true}},...P.map(p=>({text:out[p.k].total==null?'n/a':fmt(out[p.k].total*mult),options:{...cellO,bold:true,align:'right'}}))]);
-      const base=out.oci.total;
-      t.push([{text:'vs OCI',options:cellO},...P.map(p=>{const x=out[p.k].total; if(p.k==='oci') return {text:'baseline',options:{...cellO,align:'right'}}; const d=(x-base)/base*100; return {text:`${d>0?'+':''}${d.toFixed(0)}%`,options:{...cellO,align:'right',color:d>0?'12805C':'B42318',bold:true}};})]);
-      sl.addTable(t,{x:.5,y:1.4,w:12.3,colW:[3.05,1.85,1.85,1.85,1.85,1.85],border:{type:'solid',pt:.5,color:'E3E6EC'}});
-    }
-
-    // 5. Chart
-    sl=pptx.addSlide(); title(sl,'Monthly total by cloud',`Cluster: ${tc} cores / ${tv} vCPU / ${num(tr)} GB RAM across ${ROLES.reduce((a,r)=>a+c[r.id].count,0)} nodes`);
-    sl.addChart(pptx.ChartType.bar,[{name:'Monthly USD',labels:P.map(p=>p.name),values:P.map(p=>Math.round(out[p.k].total||0))}],
-      {x:.5,y:1.4,w:12.3,h:5.6,barDir:'bar',chartColors:P.map(p=>COL[p.k]),showValue:true,dataLabelFormatCode:'$#,##0',valAxisLabelFormatCode:'$#,##0',catAxisLabelFontSize:12,dataLabelFontSize:11,showLegend:false,varyColors:true});
-
-    // 6. Assumptions
-    sl=pptx.addSlide(); title(sl,'Assumptions');
-    sl.addText([...document.querySelectorAll('.notes li')].map(li=>({text:li.innerText,options:{bullet:true,breakLine:true}})),{x:.5,y:1.2,w:12.3,h:5.8,fontSize:12,color:INK,valign:'top',paraSpaceAfter:6});
-
-    await pptx.writeFile({fileName:`OpenShift-Pricing-Compare-${new Date().toISOString().slice(0,10)}.pptx`});
+    if(!window.PptxGenJS){ await new Promise((ok,err)=>{const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'; sc.onload=ok; sc.onerror=()=>err(new Error('PptxGenJS failed to load (check your internet connection).')); document.head.appendChild(sc);}); }
+    const rep=deckReport(), pptx=new PptxGenJS();
+    pptx.defineLayout({name:'DECK',width:16.667,height:9.375}); pptx.layout='DECK'; pptx.title='OpenShift Pricing Comparison';
+    deckMain(pptx,rep); deckSources(pptx,rep);
+    await pptx.writeFile({fileName:`OpenShift_Pricing_Comparison_${new Date().toISOString().slice(0,10)}.pptx`});
   }catch(e){ alert('Could not build the PPT: '+e.message); }
   finally{ btn.disabled=false; btn.textContent='⬇ Download PPT'; }
 }
+
 $('pptBtn').onclick = downloadPPT;
 renderProviders(); calc();
 </script>
