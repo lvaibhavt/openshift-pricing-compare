@@ -1,9 +1,11 @@
 # OpenShift Pricing Compare
 
+**Live calculator:** https://lvaibhavt.github.io/openshift-pricing-compare/
+
 Single-page tool comparing **Red Hat OpenShift on OCI (BYOL)** with managed OpenShift on
 **AWS (ROSA)**, **Azure (ARO)**, **Google Cloud (OSD)** and **IBM Cloud (ROKS)**.
 
-Open `index.html` in a browser (no build, no dependencies).
+Use the [live calculator](https://lvaibhavt.github.io/openshift-pricing-compare/), or open `index.html` locally in a browser (no build, no dependencies).
 
 ## Inputs
 - Master / infra / worker node counts
