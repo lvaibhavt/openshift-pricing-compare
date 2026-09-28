@@ -47,6 +47,8 @@ tr.sec td{font-size:12px;color:var(--mute);font-weight:600;padding-top:14px}
 .tabs button.on{background:var(--ink);color:var(--bg)}
 details summary{cursor:pointer;font-weight:600}
 .notes li{margin-bottom:4px}
+.notes a{color:inherit;text-decoration:underline}
+table.src td{vertical-align:top;font-size:13px}
 @media (max-width:600px){.bars{grid-template-columns:1fr}}
 
 /* ---- aligned form system ---- */
@@ -154,6 +156,20 @@ label>span{overflow:visible}
     <li><b>IBM ROKS</b>: VPC regions per IBM Cloud docs. Masters managed at no charge; infra and workers pay VM + OCP license. Bare metal on Classic.</li>
     <li>Non‑US regional prices use approximate uplifts over the cheapest US region. Storage IOPS/throughput limits are per volume. Excludes egress, load balancers, snapshots, support and reserved/committed discounts.</li>
   </ul>
+</section>
+<section class="card notes" id="sources">
+  <h2>Official pricing sources</h2>
+  <p style="color:var(--mute);margin-top:0">Every default rate in this calculator comes from the providers' public list-price pages below (on-demand, USD, checked 28 Sep 2026). Use these links to cross-check, or confirm a specific configuration in each provider's own calculator.</p>
+  <div style="overflow-x:auto"><table class="req src">
+    <thead><tr><th>Provider</th><th>OpenShift fee</th><th>Compute</th><th>Storage</th><th>Official calculator</th></tr></thead>
+    <tbody>
+      <tr><td class="role">OCI</td><td>BYOL: no fee (<a href="https://docs.oracle.com/en-us/iaas/Content/openshift-on-oci/overview.htm" target="_blank" rel="noopener">OpenShift on OCI docs</a>)</td><td><a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">OCI price list</a></td><td><a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">OCI price list (Block Volume)</a></td><td><a href="https://www.oracle.com/cloud/costestimator.html" target="_blank" rel="noopener">OCI cost estimator</a></td></tr>
+      <tr><td class="role">AWS ROSA</td><td><a href="https://aws.amazon.com/rosa/pricing/" target="_blank" rel="noopener">ROSA pricing</a>: $0.171 per 4 worker vCPU‑hr, HCP $0.25 per cluster‑hr</td><td><a href="https://aws.amazon.com/ec2/pricing/on-demand/" target="_blank" rel="noopener">EC2 on‑demand</a></td><td><a href="https://aws.amazon.com/ebs/pricing/" target="_blank" rel="noopener">EBS pricing</a></td><td><a href="https://calculator.aws/" target="_blank" rel="noopener">AWS Pricing Calculator</a></td></tr>
+      <tr><td class="role">Azure ARO</td><td><a href="https://azure.microsoft.com/en-us/pricing/details/openshift/" target="_blank" rel="noopener">ARO pricing</a>: $0.171 per 4 worker vCPU‑hr</td><td><a href="https://azure.microsoft.com/en-us/pricing/details/virtual-machines/linux/" target="_blank" rel="noopener">Linux VM pricing</a> · <a href="https://learn.microsoft.com/en-us/azure/openshift/support-policies-v4" target="_blank" rel="noopener">supported sizes</a></td><td><a href="https://azure.microsoft.com/en-us/pricing/details/managed-disks/" target="_blank" rel="noopener">Managed Disks pricing</a></td><td><a href="https://azure.microsoft.com/en-us/pricing/calculator/" target="_blank" rel="noopener">Azure Pricing Calculator</a></td></tr>
+      <tr><td class="role">Google OSD</td><td><a href="https://www.redhat.com/en/technologies/cloud-computing/openshift/dedicated" target="_blank" rel="noopener">OpenShift Dedicated (Red Hat)</a>: $0.171 per 4 worker vCPU‑hr on demand</td><td><a href="https://cloud.google.com/compute/vm-instance-pricing" target="_blank" rel="noopener">Compute Engine pricing</a></td><td><a href="https://cloud.google.com/compute/disks-image-pricing" target="_blank" rel="noopener">Disk pricing</a></td><td><a href="https://cloud.google.com/products/calculator" target="_blank" rel="noopener">Google Cloud Pricing Calculator</a></td></tr>
+      <tr><td class="role">IBM ROKS</td><td><a href="https://cloud.ibm.com/docs/openshift?topic=openshift-costs" target="_blank" rel="noopener">ROKS costs</a> · <a href="https://www.ibm.com/products/openshift/pricing" target="_blank" rel="noopener">OpenShift on IBM Cloud pricing</a></td><td><a href="https://www.ibm.com/cloud/vpc/pricing" target="_blank" rel="noopener">VPC pricing</a></td><td><a href="https://www.ibm.com/cloud/vpc/pricing" target="_blank" rel="noopener">VPC Block Storage pricing</a></td><td><a href="https://cloud.ibm.com/estimator" target="_blank" rel="noopener">IBM Cloud cost estimator</a></td></tr>
+    </tbody>
+  </table></div>
 </section>
 </div>
 
@@ -309,7 +325,7 @@ const ROLES = [
 ];
 const R = {
   aws:{hcp:.25,classic:.03,fee4:.171},
-  azure:{fee4:.35},
+  azure:{fee4:.171},
   gcp:{fee4:.171},
   ibm:{lic4:.35},
 };
